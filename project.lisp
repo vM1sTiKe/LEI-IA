@@ -1,14 +1,29 @@
 (defpackage :puzzle
-  (:EXPORT :node-dependencies :new-node :get-heuristics :get-full-path-string)
+  (:EXPORT :node-dependencies :new-node :get-full-path-string :get-depth :default-heuristic)
 )
 
 (defpackage :search
-  (:EXPORT :bf)
+  (:EXPORT :bf :a*)
+)
+
+(defpackage :branching
+  (:EXPORT :call)
 )
 
 ;Load and compile the packages, this because of the algorithms recursivity
 (LOAD (COMPILE-FILE "./puzzle.lisp"))
 (LOAD (compile-file "./search.lisp"))
+(LOAD "./branching.lisp")
+
+(DEFUN start()
+  (clear-console) ;Clear console when starting
+  (LET* (
+      (problem (select-problem)) ;Get problem to solve
+      (algorithm (select-algorithm)) ;Get algorithm to use
+    )
+    (execute algorithm problem)
+  )
+)
 
 (DEFUN select-problem()
   "Method to allow the user to select the problem to work on"
@@ -35,20 +50,10 @@
   )
 )
 
-(DEFUN start()
-  (clear-console) ;Clear console when starting
-  (LET* (
-      (problem (select-problem)) ;Get problem to solve
-      (algorithm (select-algorithm)) ;Get algorithm to use
-    )
-    (execute algorithm problem)
-  )
-)
-
 (DEFUN select-heuristic()
   "Method to allow the user to select the heuristic to use"
   (LET (
-      (heuristics (puzzle:get-heuristics))
+      (heuristics (get-heuristics))
     )
     
     (FORMAT T "~%~%Available Heuristics~%")
@@ -58,7 +63,7 @@
 )
 
 (DEFUN execute(algorithm problem)
-  "Method to execute the choosen algorithm on the choosen problem"
+  "Method to execute the choosen algorithm on the choosen problem and write the Statistics"
   (LET (
       (starting-node (LIST (puzzle:new-node problem))) ;Create a node with the selected problem
       (dependencies (puzzle:node-dependencies))
@@ -78,63 +83,23 @@
           )
           (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
         )
-        (write-problem-statistics algorithm problem solved-problem elapsed-time)
-      )
-    )
-  )
-)
+        (IF (ATOM solved-problem) ;If the algorithm returns atom (string saying it failed)
+          solved-problem ;Return the message
 
-(DEFUN read-file-problems()
-  (LABELS (
-      (line-reader (file)
-        (LET (
-            (line (READ-LINE file NIL))
-          )
-          (IF (NULL line)
-            NIL
-            (CONS (READ-FROM-STRING line) (line-reader file))
+          (PROGN ;If the algorithm returns list it means it was the solution and no failure happned
+            (FORMAT T "~%~%~%Problem solved!~%")
+            (FORMAT T (get-statistics-string algorithm problem solved-problem elapsed-time ))
+            (write-statistics (get-statistics-string algorithm problem solved-problem elapsed-time ))
           )
         )
       )
     )
-    (WITH-OPEN-FILE (file "./problemas.dat" :direction :INPUT :if-does-not-exist :ERROR)
-      (line-reader file)
-    )
   )
 )
 
-(DEFUN write-problem-statistics(algorithm problem solved-problem elapsed-time &optional (heuristic NIL))
-  "Method to create a .dat file with the statistics of the resolved problem"
-  (LABELS (
-      (current-date-time ()
-        (multiple-value-bind (second minute hour day month year)
-          (decode-universal-time (get-universal-time))
-          (FORMAT NIL "~2,'0d~2,'0d~2,'0d_~2,'0d~2,'0d~4,'0d" hour minute second day month year)
-        )
-      )
-      (file-name ()
-        (FORMAT NIL "./statistics/~a.dat" (current-date-time))
-      )
-    )
-    (LET (
-        (solution-node (NTH 0 solved-problem))
-        (expanded (NTH 1 solved-problem))
-        (generated (NTH 2 solved-problem))
-      )
-      (WITH-OPEN-FILE (file (file-name) :direction :OUTPUT :if-exists :OVERWRITE :if-does-not-exist :CREATE)
-        (WRITE-LINE (FORMAT NIL "Problem: ~a" problem) file)
-        (WRITE-LINE (FORMAT NIL "Algorithm: ~a~%" algorithm) file)
 
-        (WRITE-LINE (FORMAT NIL "Expanded noded: ~a" expanded) file)
-        (WRITE-LINE (FORMAT NIL "Generated noded: ~a" generated) file)
 
-        (WRITE-LINE (FORMAT NIL "~%Elasped time: ~as" elapsed-time) file)
-        (WRITE-LINE (FORMAT NIL "Solution:~%~a" (puzzle:get-full-path-string solution-node)) file)
-        (VALUES)
-      )
-    )
-  )
-)
+
 
 ;Aux
 (DEFUN ask-number(max)
@@ -147,6 +112,61 @@
       ((NULL (NUMBERP n)) (ask-number max)) ;User didnt write a number
       ((OR (<= n 0) (> n max)) (ask-number max)) ;User didnt write a valid number
       (T (- n 1))
+    )
+  )
+)
+
+(DEFUN clear-console(&optional (i 0))
+  "Method to clear the console (20 enters)"
+  (IF (> i 35) (values) (PROGN (FORMAT T "~%") (clear-console (1+ i))))
+)
+
+(DEFUN get-algorithms()
+  "Method to get all the available algorithms"
+  (LIST
+    'search:bf
+    'search:a*
+  )
+)
+
+(DEFUN get-heuristics()
+  "Method to get all the available heuristics"
+  (LIST
+    'puzzle:default-heuristic
+  )
+)
+
+(DEFUN is-a*(algorithm)
+  "Method to verify if the send algorithm is the a*"
+  (EQUAL (NTH 1 (get-algorithms)) algorithm)
+)
+;Aux
+
+
+
+;Statistics & problems
+(DEFUN get-statistics-string(algorithm problem solved-problem elapsed-time &optional (heuristic NIL))
+  (LET* (
+      (solution-node (NTH 0 solved-problem))
+      (expanded (NTH 1 solved-problem))
+      (generated (NTH 2 solved-problem))
+
+      (depth (puzzle:get-depth solution-node))
+      (penetration (* (/ depth generated) 1.0)) ;P = L/T
+      (avg_branching (* (branching:call generated depth) 1.0)) ;B^1 + B^2 ... + B^L = T
+    )
+    (CONCATENATE 'string ;Concatenate the statistics into one string to be used
+      (FORMAT NIL "Problem: ~a~%" problem)
+      (FORMAT NIL "Algorithm: ~a~%" algorithm)
+
+      (FORMAT NIL "~%Expanded noded: ~a~%" expanded)
+      (FORMAT NIL "Generated noded: ~a~%" generated)
+
+      (FORMAT NIL "~%Penetration: ~a" penetration)
+      (FORMAT NIL "~%Average Branching: ~a~%" avg_branching)
+      
+      (FORMAT NIL "~%Elasped time: ~as~%" elapsed-time)
+      (FORMAT NIL "Solution:~%~a" (puzzle:get-full-path-string solution-node))
     )
   )
 )
@@ -170,21 +190,44 @@
     )
   )
 )
+;Statistics & problems
 
-(DEFUN clear-console(&optional (i 0))
-  "Method to clear the console (20 enters)"
-  (IF (> i 35) (values) (PROGN (FORMAT T "~%") (clear-console (1+ i))))
+;Files
+(DEFUN read-file-problems()
+  (LABELS (
+      (line-reader (file)
+        (LET (
+            (line (READ-LINE file NIL))
+          )
+          (IF (NULL line)
+            NIL
+            (CONS (READ-FROM-STRING line) (line-reader file))
+          )
+        )
+      )
+    )
+    (WITH-OPEN-FILE (file "./problemas.dat" :direction :INPUT :if-does-not-exist :ERROR)
+      (line-reader file)
+    )
+  )
 )
 
-
-(DEFUN get-algorithms()
-  "Method to get all the available algorithms"
-  (LIST 'search:bf)
-  ; "'search:a* 'search:df"
-)
-
-(DEFUN is-a*(algorithm)
-  "Method to verify if the send algorithm is the a*"
-  ;(EQUAL 'a*:a* algorithm)
-  NIL
+(DEFUN write-statistics(statistics-string)
+  "Method to create a .dat file with the statistics of the resolved problem"
+  (LABELS (
+      (current-date-time ()
+        (multiple-value-bind (second minute hour day month year)
+          (decode-universal-time (get-universal-time))
+          (FORMAT NIL "~2,'0d~2,'0d~2,'0d_~2,'0d~2,'0d~4,'0d" hour minute second day month year)
+        )
+      )
+      (file-name ()
+        (FORMAT NIL "./statistics/~a.dat" (current-date-time))
+      )
+    )
+    (WITH-OPEN-FILE (file (file-name) :direction :OUTPUT :if-exists :OVERWRITE :if-does-not-exist :CREATE)
+      (WRITE-LINE statistics-string file)
+      (VALUES)
+    )
+  )
 )

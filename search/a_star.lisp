@@ -42,51 +42,9 @@
   )
 )
 
-(DEFUN a*-remove-duplicates(dependencies nodes &optional (seen NIL))
-  "Method to verify if there are duplicated (using the state) on the list of nodes given, only the first node found will stay"
-  (LET (
-      (node (CAR nodes))
-      (rest-nodes (CDR nodes))
-    )
-    (COND
-       ((NULL nodes) ;No more nodes to verify
-         NIL
-       )
-       ((a*-is-member dependencies node seen) ;Verify if current node is a member of the nodes already seen
-         (a*-remove-duplicates dependencies rest-nodes seen)
-       )
-       (T ;Current node is not on the seen list so goes to next iteration adding this node on the seen list
-         (CONS node (a*-remove-duplicates dependencies rest-nodes (CONS node seen)))
-       )
-     )
-  )
-)
 
-(DEFUN a*-sort-nodes(dependencies nodes)
-  "Method to do ASC sort by node cost using the given calculator"
-  (LET (
-      (cost (a*-node-cost dependencies)) ;Get the cost method
-    )
-    (LABELS ( ;Aux method to do the sorting of the nodes
-        (sort (x l) ;Sort nodes from less cost to more cost
-          (COND
-            ((NULL l) (LIST x))
-            ((< (FUNCALL cost x) (FUNCALL cost (CAR l)))
-              (CONS x l)
-            )
-            (T
-              (CONS (CAR l) (sort x (CDR l)))
-            )
-          )
-        )
-      )
-      (IF (NULL nodes)
-        NIL
-        (sort (CAR nodes) (a*-sort-nodes dependencies (CDR nodes)))
-      )
-    )
-  )
-)
+
+
 
 (DEFUN a*-not-closed(dependencies nodes closed-list)
   "Method to return the nodes that are not on the closed list"

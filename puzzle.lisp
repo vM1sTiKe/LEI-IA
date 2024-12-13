@@ -6,11 +6,6 @@
   pieces on the node"
   (get-pieces node)
 )
-
-(DEFUN get-heuristics()
-  "Method to return the list of heuristics"
-  (LIST 'default-heuristic)
-)
 ;Heuristics
 
 ;Node related methods
@@ -99,6 +94,7 @@
     'get-cost
     'is-solution
     'nodes-spawner
+    'get-depth
   )
 )
 ;;Dependencies exporter
