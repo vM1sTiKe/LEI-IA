@@ -1,0 +1,190 @@
+(defpackage :puzzle
+  (:EXPORT :node-dependencies :new-node :get-heuristics :get-full-path-string)
+)
+
+(defpackage :search
+  (:EXPORT :bf)
+)
+
+;Load and compile the packages, this because of the algorithms recursivity
+(LOAD (COMPILE-FILE "./puzzle.lisp"))
+(LOAD (compile-file "./search.lisp"))
+
+(DEFUN select-problem()
+  "Method to allow the user to select the problem to work on"
+  (LET (
+      (problems (read-file-problems))
+    )
+    
+    (FORMAT T "~%~%Available Problems~%")
+    (print-problems problems)
+    (NTH (ask-number (LENGTH problems)) problems)
+  )
+)
+
+(DEFUN select-algorithm()
+  "Method to allow the user to select the algorithm to use"
+  (LET (
+      (algorithms (get-algorithms))
+    )
+    (FORMAT T "~%~%Available Algorithms~%")
+    (FORMAT T "1- BF~%")
+    (FORMAT T "2- A*~%")
+    (FORMAT T "3- DF~%")
+    (NTH (ask-number (LENGTH algorithms)) algorithms)
+  )
+)
+
+(DEFUN start()
+  (clear-console) ;Clear console when starting
+  (LET* (
+      (problem (select-problem)) ;Get problem to solve
+      (algorithm (select-algorithm)) ;Get algorithm to use
+    )
+    (execute algorithm problem)
+  )
+)
+
+(DEFUN select-heuristic()
+  "Method to allow the user to select the heuristic to use"
+  (LET (
+      (heuristics (puzzle:get-heuristics))
+    )
+    
+    (FORMAT T "~%~%Available Heuristics~%")
+    (FORMAT T "1- Given by professor~%")
+    (NTH (ask-number (LENGTH heuristics)) heuristics)
+  )
+)
+
+(DEFUN execute(algorithm problem)
+  "Method to execute the choosen algorithm on the choosen problem"
+  (LET (
+      (starting-node (LIST (puzzle:new-node problem))) ;Create a node with the selected problem
+      (dependencies (puzzle:node-dependencies))
+      (heuristic (IF (is-a* algorithm) (select-heuristic) NIL)) ;If the selected algorithm is a* ask the heuristic
+    )
+    (PROGN
+      (FORMAT T "~%~%Executing~%")
+      (LET* (
+          (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
+          (solved-problem ;Call the algorithm depending on conditions
+            (COND
+              ((NOT (NULL heuristic))
+                (FUNCALL algorithm dependencies heuristic starting-node)
+              )
+              (T (FUNCALL algorithm dependencies starting-node))
+            )
+          )
+          (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
+        )
+        (write-problem-statistics algorithm problem solved-problem elapsed-time)
+      )
+    )
+  )
+)
+
+(DEFUN read-file-problems()
+  (LABELS (
+      (line-reader (file)
+        (LET (
+            (line (READ-LINE file NIL))
+          )
+          (IF (NULL line)
+            NIL
+            (CONS (READ-FROM-STRING line) (line-reader file))
+          )
+        )
+      )
+    )
+    (WITH-OPEN-FILE (file "./problemas.dat" :direction :INPUT :if-does-not-exist :ERROR)
+      (line-reader file)
+    )
+  )
+)
+
+(DEFUN write-problem-statistics(algorithm problem solved-problem elapsed-time &optional (heuristic NIL))
+  "Method to create a .dat file with the statistics of the resolved problem"
+  (LABELS (
+      (current-date-time ()
+        (multiple-value-bind (second minute hour day month year)
+          (decode-universal-time (get-universal-time))
+          (FORMAT NIL "~2,'0d~2,'0d~2,'0d_~2,'0d~2,'0d~4,'0d" hour minute second day month year)
+        )
+      )
+      (file-name ()
+        (FORMAT NIL "./statistics/~a.dat" (current-date-time))
+      )
+    )
+    (LET (
+        (solution-node (NTH 0 solved-problem))
+        (expanded (NTH 1 solved-problem))
+        (generated (NTH 2 solved-problem))
+      )
+      (WITH-OPEN-FILE (file (file-name) :direction :OUTPUT :if-exists :OVERWRITE :if-does-not-exist :CREATE)
+        (WRITE-LINE (FORMAT NIL "Problem: ~a" problem) file)
+        (WRITE-LINE (FORMAT NIL "Algorithm: ~a~%" algorithm) file)
+
+        (WRITE-LINE (FORMAT NIL "Expanded noded: ~a" expanded) file)
+        (WRITE-LINE (FORMAT NIL "Generated noded: ~a" generated) file)
+
+        (WRITE-LINE (FORMAT NIL "~%Elasped time: ~as" elapsed-time) file)
+        (WRITE-LINE (FORMAT NIL "Solution:~%~a" (puzzle:get-full-path-string solution-node)) file)
+        (VALUES)
+      )
+    )
+  )
+)
+
+;Aux
+(DEFUN ask-number(max)
+  "Method to read a number, from 0 to n"
+  (FORMAT T "Choose one (number): ")
+  (LET (
+      (n (READ)) ;Read the number the user chooses
+    )
+    (COND
+      ((NULL (NUMBERP n)) (ask-number max)) ;User didnt write a number
+      ((OR (<= n 0) (> n max)) (ask-number max)) ;User didnt write a valid number
+      (T (- n 1))
+    )
+  )
+)
+
+(DEFUN print-problems(problems &optional (max (LENGTH problems)))
+  (LABELS (
+      (tmp (n p)
+        (FORMAT T "Problema ~a: " n)
+        (DOLIST (line p) (FORMAT T "~a " line))
+        (FORMAT T "~%")
+      )
+    )
+    (LET (
+        (p (CAR problems))
+        (rest-problems (CDR problems))
+      )
+      (IF (NULL problems) ;No more problems to print
+        (values)
+        (PROGN (tmp (- max (LENGTH rest-problems)) p) (print-problems rest-problems max))
+      )
+    )
+  )
+)
+
+(DEFUN clear-console(&optional (i 0))
+  "Method to clear the console (20 enters)"
+  (IF (> i 35) (values) (PROGN (FORMAT T "~%") (clear-console (1+ i))))
+)
+
+
+(DEFUN get-algorithms()
+  "Method to get all the available algorithms"
+  (LIST 'search:bf)
+  ; "'search:a* 'search:df"
+)
+
+(DEFUN is-a*(algorithm)
+  "Method to verify if the send algorithm is the a*"
+  ;(EQUAL 'a*:a* algorithm)
+  NIL
+)
