@@ -1,5 +1,5 @@
 (defpackage :puzzle
-  (:EXPORT :node-dependencies :new-node :get-full-path-string :get-depth :default-heuristic)
+  (:EXPORT :node-dependencies :new-node :get-full-path-string :get-depth :default-heuristic :custom-heuristic)
 )
 
 (defpackage :search
@@ -30,10 +30,11 @@
   (LET (
       (problems (read-file-problems))
     )
-    
-    (FORMAT T "~%~%Available Problems~%")
-    (print-problems problems)
-    (NTH (ask-number (LENGTH problems)) problems)
+    (PROGN
+      (FORMAT T "~%~%Available Problems~%")
+      (print-problems problems)
+      (NTH (ask-number (LENGTH problems)) problems)
+    )
   )
 )
 
@@ -42,11 +43,13 @@
   (LET (
       (algorithms (get-algorithms))
     )
-    (FORMAT T "~%~%Available Algorithms~%")
-    (FORMAT T "1- BF~%")
-    (FORMAT T "2- A*~%")
-    (FORMAT T "3- DF~%")
-    (NTH (ask-number (LENGTH algorithms)) algorithms)
+    (PROGN
+      (FORMAT T "~%~%Available Algorithms~%")
+      (FORMAT T "1- BF~%")
+      (FORMAT T "2- A*~%")
+      (FORMAT T "3- DF~%")
+      (NTH (ask-number (LENGTH algorithms)) algorithms)
+    )
   )
 )
 
@@ -55,19 +58,20 @@
   (LET (
       (heuristics (get-heuristics))
     )
-    
-    (FORMAT T "~%~%Available Heuristics~%")
-    (FORMAT T "1- Given by professor~%")
-    (NTH (ask-number (LENGTH heuristics)) heuristics)
+    (PROGN
+      (FORMAT T "~%~%Available Heuristics~%")
+      (FORMAT T "1- Given by professor~%")
+      (FORMAT T "2- Created by group~%")
+      (NTH (ask-number (LENGTH heuristics)) heuristics)
+    )
   )
 )
 
 (DEFUN execute(algorithm problem)
   "Method to execute the choosen algorithm on the choosen problem and write the Statistics"
-  (LET (
-      (starting-node (LIST (puzzle:new-node problem))) ;Create a node with the selected problem
-      (dependencies (puzzle:node-dependencies))
+  (LET* (
       (heuristic (IF (is-a* algorithm) (select-heuristic) NIL)) ;If the selected algorithm is a* ask the heuristic
+      (starting-node (LIST (puzzle:new-node problem :heuristic heuristic))) ;Create a node with the selected problem
     )
     (PROGN
       (FORMAT T "~%~%Executing~%")
@@ -76,20 +80,23 @@
           (solved-problem ;Call the algorithm depending on conditions
             (COND
               ((NOT (NULL heuristic))
-                (FUNCALL algorithm dependencies heuristic starting-node)
+                (FUNCALL algorithm (puzzle:node-dependencies) heuristic starting-node)
               )
-              (T (FUNCALL algorithm dependencies starting-node))
+              (T (FUNCALL algorithm (puzzle:node-dependencies) starting-node))
             )
           )
           (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
         )
         (IF (ATOM solved-problem) ;If the algorithm returns atom (string saying it failed)
           solved-problem ;Return the message
-
-          (PROGN ;If the algorithm returns list it means it was the solution and no failure happned
-            (FORMAT T "~%~%~%Problem solved!~%")
-            (FORMAT T (get-statistics-string algorithm problem solved-problem elapsed-time ))
-            (write-statistics (get-statistics-string algorithm problem solved-problem elapsed-time ))
+          (LET (
+              (statistic-string (get-statistics-string algorithm problem solved-problem elapsed-time heuristic))
+            )
+            (PROGN ;If the algorithm returns list it means it was the solution and no failure happned
+              (FORMAT T "~%~%~%Problem solved!~%")
+              (FORMAT T "~a" statistic-string)
+              (write-statistics statistic-string)
+            )
           )
         )
       )
@@ -133,6 +140,7 @@
   "Method to get all the available heuristics"
   (LIST
     'puzzle:default-heuristic
+    'puzzle:custom-heuristic
   )
 )
 
@@ -158,6 +166,7 @@
     (CONCATENATE 'string ;Concatenate the statistics into one string to be used
       (FORMAT NIL "Problem: ~a~%" problem)
       (FORMAT NIL "Algorithm: ~a~%" algorithm)
+      (IF (NULL heuristic) NIL (FORMAT NIL "Heuristic: ~a~%" heuristic))
 
       (FORMAT NIL "~%Expanded noded: ~a~%" expanded)
       (FORMAT NIL "Generated noded: ~a~%" generated)
