@@ -1,31 +1,47 @@
 (IN-PACKAGE :puzzle)
 
 ;Heuristics
-(DEFUN default-heuristic(node)
+(DEFUN default-heuristic(node-state)
   "Method to calculate a heuristic h(x) = o(x) - c(x); o(x) pieces to capture from the beginning of the game; c(x) pieces captured, this is the same as only searching for the current
   pieces on the node"
-  (get-pieces node)
+  (get-state-pieces node-state)
+)
+
+(DEFUN custom-heuristic(node-state)
+  "Method to calculate a heuristic that privileges states with more empty cells"
+  (LABELS (
+      (empty-cells-amount (&optional (row 0) (column 0))
+        (COND
+          ((>= row 2) 0) ;Outside of the row range, end condition
+          ((>= column 6) (empty-cells-amount (1+ row) 0)) ;Outside of the column range, jump to next row
+          ((ZEROP (NTH column (NTH row node-state))) ;Verifies if theres is not a value on this cell
+            (+ 1 (empty-cells-amount row (1+ column)))
+          )
+          (T (empty-cells-amount row (1+ column))) ;Values here so go next
+        )
+      )
+    )
+    (LET (
+        (empty-amount (empty-cells-amount)) ;Get the amount of empty cells
+        (pieces-amount (* (get-state-pieces node-state) 2)) ;Get the amount of pieces and times 2 it
+      )
+      (COND
+        ((< empty-amount pieces-amount) (- pieces-amount empty-amount)) ;If the empty cells amount is lower than the pieces amount (times 2) then we remove the empty and return the value
+        (T pieces-amount) ;If we cannot remove the empty amount we only return the cells (times 2)
+      )
+    )
+  )
 )
 ;Heuristics
 
 ;Node related methods
-(DEFUN new-node(state &optional (parent NIL) (heuristic 0))
+(DEFUN constructor(state &key (parent NIL) (heuristic NIL))
   "Method to create a new node with the given params"
   (LIST
     state
     (IF (NULL parent) 0 (1+ (get-depth parent)))
-    heuristic
+    (IF (NULL heuristic) -1 (FUNCALL heuristic state))
     parent
-  )
-)
-
-(DEFUN test()
-  "Returns a test node"
-  (LIST
-    (LIST (LIST 8 8 8 8 8 8) (LIST 8 8 8 8 8 8)) ;State
-    0 ;Depth
-    0 ;Heuristic
-    NIL ;Parent
   )
 )
 
@@ -54,14 +70,8 @@
   (+ (get-depth node) (get-heuristic node))
 )
 
-(DEFUN get-cell(node row column)
-  "Method to get a cell value from a node"
-  (get-cell-from-state (get-state node) row column)
-)
-
-(DEFUN get-pieces(node)
+(DEFUN get-state-pieces(node-state)
   (LET* (
-      (node-state (get-state node)) ;Get the state
       (top-row (NTH 0 node-state)) ;Split state and get top row
       (bot-row (NTH 1 node-state)) ;Split state and get bottom row
     )
@@ -71,18 +81,14 @@
 
 (DEFUN is-solution(node)
   "Verifies is the given nodes is have the final state"
-  (ZEROP (get-pieces node)) ;Verifies if the node has 0 pieces total
+  (ZEROP (get-state-pieces (get-state node))) ;Verifies if the node has 0 pieces total
 )
-;Node related methods
 
-
-
-;Node state related methods
-(DEFUN get-cell-from-state(node-state row column)
+(DEFUN get-state-cell(node-state row column)
   "Method to get a cell value from a node-state"
   (NTH column (NTH row node-state))
 )
-;Node state related methods
+;Node related methods
 
 
 
@@ -124,12 +130,16 @@
   )
 )
 
-(DEFUN increment(node-state row column &aux (cell-value (get-cell-from-state node-state row column)))
+(DEFUN increment(node-state row column)
   "Method to increment by one the value on the given cell"
-  (swap node-state row column (1+ cell-value))  
+  (LET (
+      (current-cell-value (get-state-cell node-state row column))
+    )
+    (swap node-state row column (1+ current-cell-value))
+  )
 )
 
-(DEFUN get-destribution(node-state row column &optional (amount (get-cell-from-state node-state row column)) (initial-row row) (initial-column column))
+(DEFUN get-destribution(node-state row column &optional (amount (get-state-cell node-state row column)) (initial-row row) (initial-column column))
   "Method to calculate the distribution list from a state and cell"
   (COND
     ((= 0 amount) NIL)
@@ -158,25 +168,16 @@
   )
 )
 
-(DEFUN get-available-operators(node &optional (row 0) (column 0))
+(DEFUN get-available-operators(node &optional (row 0) (column 0) &aux (node-state (get-state node)))
   "Method to return a list of cells in (row column) that are available cells to play"
-  (LET (
-      (next-row (1+ row)) ;Calculate next row
-      (next-column (1+ column)) ;Calculate next column
+  (COND
+    ((>= row 2) NIL) ;Outside of the row range, end condition
+    ((>= column 6) (get-available-operators node (1+ row) 0)) ;Outside of the column range, jump to next row
+    ((ZEROP (get-state-cell node-state row column)) ;Verifies if theres is not a value on the cell to play, jump to next column
+      (get-available-operators node row (1+ column))
     )
-    (COND
-      ((>= row 2) ;Outside of the row range, end condition
-        NIL
-      )
-      ((>= column 6) ;Outside of the column range, jump to next row
-        (get-available-operators node next-row 0)
-      )
-      ((ZEROP (get-cell node row column)) ;Verifies if theres is not a value on the cell to play, jump to next column
-        (get-available-operators node row next-column)
-      )
-      (T ;This cell have values so its a possible play
-        (CONS (LIST row column) (get-available-operators node row next-column))
-      )
+    (T ;This cell have values so its a possible play
+      (CONS (LIST row column) (get-available-operators node row (1+ column)))
     )
   )
 )
@@ -189,7 +190,7 @@
   "Method to recieve a node state and execute the play on the given cell"
   (LET* (
       (copy-node-state node-state) ;Copy of node state to get changed
-      (cell-value (get-cell-from-state node-state row column)) ;Get the amount to do the distribution
+      (cell-value (get-state-cell node-state row column)) ;Get the amount to do the distribution
       (dist-list (get-destribution node-state row column cell-value)) ;Get the distribution list
     )
 
@@ -207,7 +208,7 @@
     (LET* (
         (last-row (NTH 0 (CAR (LAST dist-list))))
         (last-column (NTH 1 (CAR (LAST dist-list))))
-        (last-cell-value (get-cell-from-state copy-node-state last-row last-column))
+        (last-cell-value (get-state-cell copy-node-state last-row last-column))
       )
       (COND
         ((OR (= last-cell-value 1) (= last-cell-value 3) (= last-cell-value 5))
@@ -224,18 +225,13 @@
 
 ;Spawner
 (DEFUN node-spawner(node-parent row column &optional (heuristic NIL)) 
-  "Method to spawn a new node doing the operation on the given cell, this has to be only done on row&columns
-  combinations that the get-available-operations return"
-  "Even if the algorithm that is using this spawner doesnt use the heuristic value that value will still exist on the node"
+  "Method to spawn a new node doing the operation on the given cell, this has to be only done on row&columns"
+  "combinations that the get-available-operations return"
   (LET* (
-      (parent-state (get-state node-parent)) ;Get node state
+      (parent-state (get-state node-parent)) ;Get parent node state
       (spawned-state (operation parent-state row column)) ;Get a new state applying the given operator
-      (tmp-node (new-node spawned-state node-parent)) ;Create a temp node to in the future calculate the heuristic value
     )
-    (IF (NULL heuristic) ;Verifies if was not given an heuristic to calculate on this node
-      tmp-node
-      (new-node spawned-state node-parent (FUNCALL heuristic tmp-node)) ;Create the final node calculating the heuristic value using the tmp
-    )
+    (constructor spawned-state :parent node-parent :heuristic heuristic)
   )
 )
 
@@ -257,7 +253,7 @@
         (depth (get-depth node))
         (heuristic (get-heuristic node))
       )
-      (IF (ZEROP heuristic)
+      (IF (< heuristic 0)
         (FORMAT NIL "~a | g - ~a~%~a" state depth (get-full-path-string (get-parent node)))
         (FORMAT NIL "~a | g - ~a | h - ~a~%~a" state depth heuristic (get-full-path-string (get-parent node)))
       )
