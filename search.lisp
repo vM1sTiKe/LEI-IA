@@ -196,7 +196,7 @@
       )
       ;Verify if the current node depth is bigger than the max-depth to cancel
       (IF (> (FUNCALL (dependency-depth dependencies) (CAR opened-list)) max-depth)
-        (bf dependencies max-depth (CDR opened-list) (CONS node closed-list)) ;Go to next iteration
+        (df dependencies max-depth (CDR opened-list) (CONS node closed-list)) ;Go to next iteration
         
         ;The node is not above the max depth so get successors and execute the algoithm
         (df_successors dependencies node opened-list closed-list)
@@ -210,12 +210,28 @@
   (LET* (
       (successors (spawn-successors dependencies node)) ;Get successors
       (s-not-opened (nodes-not-on-list dependencies successors opened-list)) ;Ignore nodes on opened list
-      (s-not-closed-and-opened (nodes-not-on-list dependencies s-not-closed opened-list))0
+      ;(s-not-closed-and-opened (nodes-not-on-list dependencies s-not-closed opened-list))
     )
-    s-not-closed-and-opened
+    NIL
   )
 )
 
 (DEFUN df_()
 )
 ;DF Methods
+
+;IDA*
+(DEFUN ida*(dependencies heuristic start &optional (threshold ))
+  "Method to execute the IDA* algorithm depth first type, recieving the first node as a list"
+
+  (LABELS (
+      (search (opened-list &optional (closed-list NIL))
+      )
+    )
+    (LET (
+        (found)
+      )
+    )
+  )
+)
+;IDA*
