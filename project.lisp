@@ -1,9 +1,9 @@
 (defpackage :puzzle
-  (:EXPORT :node-dependencies :new-node :get-full-path-string :get-depth :default-heuristic :custom-heuristic)
+  (:EXPORT :node-dependencies :constructor :get-full-path-string :get-depth :default-heuristic :custom-heuristic)
 )
 
 (defpackage :search
-  (:EXPORT :bf :a*)
+  (:EXPORT :bf :a* :df)
 )
 
 (defpackage :branching
@@ -12,7 +12,7 @@
 
 ;Load and compile the packages, this because of the algorithms recursivity
 (LOAD (COMPILE-FILE "./puzzle.lisp"))
-(LOAD (compile-file "./search.lisp"))
+(LOAD (COMPILE-FILE "./search.lisp"))
 (LOAD "./branching.lisp")
 
 (DEFUN start()
@@ -67,11 +67,20 @@
   )
 )
 
+(DEFUN choose-max-depth()
+  "Method to allow the user to choose a max-depth"
+  (PROGN
+    (FORMAT T "~%~%Max Depth~%")
+    (ask-number 9999)
+  )
+)
+
 (DEFUN execute(algorithm problem)
   "Method to execute the choosen algorithm on the choosen problem and write the Statistics"
   (LET* (
       (heuristic (IF (is-a* algorithm) (select-heuristic) NIL)) ;If the selected algorithm is a* ask the heuristic
-      (starting-node (LIST (puzzle:new-node problem :heuristic heuristic))) ;Create a node with the selected problem
+      (max-depth (IF (is-df algorithm) (choose-max-depth) NIL)) ;If the selected algorithm is df ask the max-depth
+      (starting-node (LIST (puzzle:constructor problem :heuristic heuristic))) ;Create a node with the selected problem
     )
     (PROGN
       (FORMAT T "~%~%Executing~%")
@@ -79,10 +88,9 @@
           (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
           (solved-problem ;Call the algorithm depending on conditions
             (COND
-              ((NOT (NULL heuristic))
-                (FUNCALL algorithm (puzzle:node-dependencies) heuristic starting-node)
-              )
-              (T (FUNCALL algorithm (puzzle:node-dependencies) starting-node))
+              (heuristic (FUNCALL algorithm (puzzle:node-dependencies) heuristic starting-node)) ;a* because we have heuristic
+              (max-depth (FUNCALL algorithm (puzzle:node-dependencies) max-depth starting-node)) ;df because we have max-depth
+              (T (FUNCALL algorithm (puzzle:node-dependencies) starting-node)) ;bf
             )
           )
           (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
@@ -90,7 +98,7 @@
         (IF (ATOM solved-problem) ;If the algorithm returns atom (string saying it failed)
           solved-problem ;Return the message
           (LET (
-              (statistic-string (get-statistics-string algorithm problem solved-problem elapsed-time heuristic))
+              (statistic-string (get-statistics-string algorithm problem solved-problem elapsed-time :heuristic heuristic :max-depth max-depth))
             )
             (PROGN ;If the algorithm returns list it means it was the solution and no failure happned
               (FORMAT T "~%~%~%Problem solved!~%")
@@ -133,6 +141,7 @@
   (LIST
     'search:bf
     'search:a*
+    'search:df
   )
 )
 
@@ -148,12 +157,17 @@
   "Method to verify if the send algorithm is the a*"
   (EQUAL (NTH 1 (get-algorithms)) algorithm)
 )
+
+(DEFUN is-df(algorithm)
+  "Method to verify if the send algorithm is the a*"
+  (EQUAL (NTH 2 (get-algorithms)) algorithm)
+)
 ;Aux
 
 
 
 ;Statistics & problems
-(DEFUN get-statistics-string(algorithm problem solved-problem elapsed-time &optional (heuristic NIL))
+(DEFUN get-statistics-string(algorithm problem solved-problem elapsed-time &key (heuristic NIL) (max-depth NIL))
   (LET* (
       (solution-node (NTH 0 solved-problem))
       (expanded (NTH 1 solved-problem))
@@ -166,7 +180,8 @@
     (CONCATENATE 'string ;Concatenate the statistics into one string to be used
       (FORMAT NIL "Problem: ~a~%" problem)
       (FORMAT NIL "Algorithm: ~a~%" algorithm)
-      (IF (NULL heuristic) NIL (FORMAT NIL "Heuristic: ~a~%" heuristic))
+      (IF heuristic (FORMAT NIL "Heuristic: ~a~%" heuristic) NIL)
+      (IF max-depth (FORMAT NIL "Max Depth: ~a~%" max-depth) NIL)
 
       (FORMAT NIL "~%Expanded noded: ~a~%" expanded)
       (FORMAT NIL "Generated noded: ~a~%" generated)
