@@ -35,11 +35,6 @@
   )
 )
 
-(DEFUN spawn-successors(dependencies node &optional (heuristic NIL))
-  "Method to call the successors spawners on the given node"
-  (FUNCALL (dependency-spawner dependencies) node heuristic) 
-)
-
 (DEFUN return-data(solution opened-list closed-list)
   "Method to return the data from this algortihm, it will return the solution, the generated noded and expanded nodes"
   "Expanded nodes are the ones on the closed list"
@@ -51,107 +46,102 @@
   )
 )
 
-
-
-;BF Methods
-(DEFUN bf(dependencies opened-list &optional (closed-list NIL))
-  "Method to execute the breath-first algorithm, recieving the puzzle dependencies and the first node as a list on the opened list"
-  (IF (NULL opened-list) ;Error if the open list is empty
-    "Failure on search"
-    (LET* (
-        (node (CAR opened-list)) ;Get current node
-
-        ;Generate all successors (spawn-successors) and filter for only the valid successors
-        (valid-successors (bf_successors-filter dependencies (spawn-successors dependencies node) opened-list closed-list)) 
-        (solution (bf_solution dependencies valid-successors)) ;Get the solution if there is
-      )
-      (PROGN
-        (format-node node) ;Print to see if algorithhm is working
-        (IF (NOT (NULL solution)) ;Verify if solution
-          ;Return the solution and the algorithm data, append the successors to the end of the rest of the opened list, add the node to the closed list
-          (return-data solution (APPEND (CDR opened-list) valid-successors) (CONS node closed-list)) ;Return solution and the data
-          (bf dependencies (APPEND (CDR opened-list) valid-successors) (CONS node closed-list));Go to next iteration
-        )
-      )
-    )
-  )
-)
-
-(DEFUN bf_successors-filter(dependencies successors opened-list closed-list)
-  "Method to get the successors depending on the closed and open list, the successors cannot be on any of those"
+(DEFUN spawn-successors-not-closed-not-opened(dependencies node opened-list closed-list &optional (heuristic NIL))
+  "Method to get successsors from the node and to only return the successors that are not on the opened and closed list"
   (LET* (
-      (s-not-closed (nodes-not-on-list dependencies successors closed-list))
-      (s-not-closed-and-opened (nodes-not-on-list dependencies s-not-closed opened-list))
+      (successors (FUNCALL (dependency-spawner dependencies) node heuristic))
+      (not-closed (nodes-not-on-list dependencies successors closed-list))
+      (not-closed-and-opened (nodes-not-on-list dependencies not-closed opened-list))
     )
-    s-not-closed-and-opened
+    not-closed-and-opened
   )
 )
 
-(DEFUN bf_solution(dependencies successors)
+(DEFUN solution-from-successors(dependencies successors)
   "Method to return the first successor that is the solution"
   (COND
     ((NULL successors) NIL) ;Successors is empty
     ;Verify if the first node (CAR successors) is the solution
     ((FUNCALL (dependency-is-solution dependencies) (CAR successors)) (CAR successors))
-    (T (bf_solution dependencies (CDR successors))) ;Not equal goes to next iteration
+    (T (solution-from-successors dependencies (CDR successors))) ;Not equal goes to next iteration
   )
 )
-;BF Methods
 
 
 
-;A* Methods
-;This algorithm is not fully completed, it is not validating if a node is closed and if he is replacing if the current one has lower f(n)
-(DEFUN a*(dependencies heuristic opened-list &optional (closed-list NIL))
-  "Method to execute the a* algorithm, recieving the puzzle dependencies the heuristicm method and the first node as a list on the opened list"
+;BF
+(DEFUN bf(dependencies opened-list &optional (closed-list NIL))
+  "Method to execute the breath-first algorithm"
   (IF (NULL opened-list) ;Error if the open list is empty
     "Failure on search"
-    (LET (
-        (node (CAR opened-list)) ;Get current node
+    (PROGN
+      (format-node (CAR opened-list)) ;Print to see if algorithhm is working
+      (LET* (
+          (valid-successors (spawn-successors-not-closed-not-opened dependencies (CAR opened-list) opened-list closed-list)) ;Generate all successors
+          (solution (solution-from-successors dependencies valid-successors)) ;Get the solution if there is
+        )
+        (IF solution ;Verify if solution
+          ;Return the solution and the algorithm data, append the successors to the end of the rest of the opened list, add the node to the closed list
+          (return-data solution (APPEND (CDR opened-list) valid-successors) (CONS (CAR opened-list) closed-list)) ;Return solution and the data
+          (bf dependencies (APPEND (CDR opened-list) valid-successors) (CONS (CAR opened-list) closed-list));Go to next iteration
+        )
       )
-      (PROGN
-        (format-node node) ;Print working node
-        (IF (FUNCALL (dependency-is-solution dependencies) node) ;Verify if node to be worked is solution
-          (return-data node opened-list closed-list) ;Node is the solution return data
+    )
+  )
+)
+;BF
 
-          ;Node to be worked is not the solution so get successors and keep going
-          (LET (
-              ;Generate all successors (spawn-successors) and filter for only the valid successors
-              (valid-successors (a*_successors-filter dependencies (spawn-successors dependencies node heuristic) opened-list closed-list)) 
-            )
-            ;Add the valid successors into the rest of the opened list and sort them
-            (a* dependencies heuristic (a*_add-to-open dependencies valid-successors (CDR opened-list)) (CONS node closed-list))
+
+
+;DF Incomplete, not solving the closed list if the current node is there
+(DEFUN df(dependencies max-depth opened-list &optional (closed-list NIL))
+  "Method to execute the depth-first algorithm"
+  (IF (NULL opened-list) ;Error if the open list is empty
+    "Failure on search"
+    (PROGN
+      (format-node (CAR opened-list)) ;Print to see if algorithhm is working
+      ;Validate the current node depth
+      (IF (> (FUNCALL (dependency-depth dependencies) (CAR opened-list)) max-depth) ;Current node depth is higher than the max allowed depth
+        (df dependencies max-depth (CDR opened-list) (CONS (CAR opened-list) closed-list)) ;Go to next iteration without spawning successors
+
+        ;Max depth not reach so keep executing
+        (LET* (
+            (valid-successors (spawn-successors-not-closed-not-opened dependencies (CAR opened-list) opened-list closed-list)) ;Generate all successors
+            (solution (solution-from-successors dependencies valid-successors)) ;Get the solution if there is
+          )
+          (IF solution ;Verify if solution
+            ;Return the solution and the algorithm data, append the successors to the end of the rest of the opened list, add the node to the closed list
+            (return-data solution (APPEND valid-successors (CDR opened-list)) (CONS (CAR opened-list) closed-list)) ;Return solution and the data
+            (df dependencies max-depth (APPEND valid-successors (CDR opened-list)) (CONS (CAR opened-list) closed-list));Go to next iteration
           )
         )
       )
     )
   )
 )
+;DF
 
-(DEFUN a*_successors-filter(dependencies successors opened-list closed-list)
-  "Method to get the successors depending on the closed and open list, the successors cannot be on any of those"
-  (LET* (
-      (s-not-closed (nodes-not-on-list dependencies successors closed-list))
-      (s-not-closed-and-opened (nodes-not-on-list dependencies s-not-closed opened-list))
-    )
-    s-not-closed-and-opened
-  )
-)
 
-(DEFUN a*_remove-duplicates(dependencies nodes &optional (seen NIL))
-  "Method to verify if there are duplicated (using the state) on the list of nodes given, only the first node found will stay"
-  (LET (
-      (node (CAR nodes))
+
+;A* Incomplete, not swaping higher cost from opened/closed list
+(DEFUN a*(dependencies heuristic opened-list &optional (closed-list NIL))
+  "Method to execute the a* algorithm, recieving the puzzle dependencies the heuristicm method and the first node as a list on the opened list"
+  (IF (NULL opened-list) ;Error if the open list is empty
+    "Failure on search"
+    (PROGN
+      (format-node (CAR opened-list)) ;Print working node
+      ;Validate if current node is the solution
+      (IF (FUNCALL (dependency-is-solution dependencies) (CAR opened-list)) ;Verify if node to be worked is solution
+        (return-data (CAR opened-list) opened-list closed-list) ;Node is the solution return data~
+
+        ;Node not solution so keep executing
+        (LET (
+            (valid-successors (spawn-successors-not-closed-not-opened dependencies (CAR opened-list) opened-list closed-list heuristic)) ;Generate all successors
+          )
+          (a* dependencies heuristic (a*_add-to-open dependencies valid-successors (CDR opened-list)) (CONS (CAR opened-list) closed-list)) ;Go to next iteration
+        )
+      )
     )
-    (COND
-       ((NULL nodes) NIL);No more nodes to verify
-       ((node-is-member dependencies node seen) ;Verify if current node is a member of the nodes already seen
-         (a*_remove-duplicates dependencies (CDR nodes) seen)
-       )
-       (T ;Current node is not on the seen list so goes to next iteration adding this node on the seen list
-         (CONS node (a*_remove-duplicates dependencies (CDR nodes) (CONS node seen)))
-       )
-     )
   )
 )
 
@@ -180,58 +170,6 @@
 (DEFUN a*_add-to-open(dependencies nodes opened-list)
   "Method to merge a list of successor nodes and the open nodes list, doing the sort and duplicates removal
   this method is not responsible of verifing if the nodes to add are on the close list or not, that validation should be done before calling this method"
-  (a*_remove-duplicates dependencies (a*_sort-nodes dependencies (APPEND opened-list nodes)))
+  (a*_sort-nodes dependencies (APPEND opened-list nodes))
 )
-;A* Methods
-
-
-
-;DF Methods
-(DEFUN df(dependencies max-depth opened-list &optional (closed-list NIL))
-  "Method to execute the breath-first algorithm, recieving the puzzle dependencies and the first node as a list on the opened list"
-  (IF (NULL opened-list) ;Error if the open list is empty
-    "Failure on search"
-    (LET (
-        (node (CAR opened-list)) ;Get current node
-      )
-      ;Verify if the current node depth is bigger than the max-depth to cancel
-      (IF (> (FUNCALL (dependency-depth dependencies) (CAR opened-list)) max-depth)
-        (df dependencies max-depth (CDR opened-list) (CONS node closed-list)) ;Go to next iteration
-        
-        ;The node is not above the max depth so get successors and execute the algoithm
-        (df_successors dependencies node opened-list closed-list)
-      )
-    )
-  )
-)
-
-(DEFUN df_successors(dependencies node opened-list closed-list)
-  "Method to spawn the successors and filter them with the Depth first algorithm rules"
-  (LET* (
-      (successors (spawn-successors dependencies node)) ;Get successors
-      (s-not-opened (nodes-not-on-list dependencies successors opened-list)) ;Ignore nodes on opened list
-      ;(s-not-closed-and-opened (nodes-not-on-list dependencies s-not-closed opened-list))
-    )
-    NIL
-  )
-)
-
-(DEFUN df_()
-)
-;DF Methods
-
-;IDA*
-(DEFUN ida*(dependencies heuristic start &optional (threshold ))
-  "Method to execute the IDA* algorithm depth first type, recieving the first node as a list"
-
-  (LABELS (
-      (search (opened-list &optional (closed-list NIL))
-      )
-    )
-    (LET (
-        (found)
-      )
-    )
-  )
-)
-;IDA*
+;A*
