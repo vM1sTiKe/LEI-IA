@@ -39,11 +39,20 @@
   "Method to return the data from this algortihm, it will return the solution, the generated noded and expanded nodes"
   "Expanded nodes are the ones on the closed list"
   "Generated nodes are the adition of the ones on the closed list, open list and the successors of that iteration"
-  (LIST
-    solution
-    (LENGTH closed-list) ;Expanded nodes
-    (+ (LENGTH opened-list) (LENGTH closed-list)) ;Generated nodes
+  "The opened list must have already the successors on it"
+  "The closed list must have already the parent of the successors on it"
+  (LET (
+      ;Get the closed list length, we need to remove one from that value, this because the very first node of the closed list is the root node, that one was not expanded
+      (closed-length (1- (LENGTH closed-list)))
+      (opened-length (LENGTH opened-list))
+    )
+    (LIST
+      solution
+      closed-length ;Expanded nodes
+      (+ opened-length closed-length) ;Generated nodes
+    )
   )
+  
 )
 
 (DEFUN spawn-successors-not-closed-not-opened(dependencies node opened-list closed-list &optional (heuristic NIL))
