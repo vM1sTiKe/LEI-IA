@@ -25,15 +25,14 @@
   (IF (< n 0) -1 1)
 )
 
-(DEFUN operator(b L total)
+(DEFUN operator(b l total)
   "B^1 + B^2 + B^3 ... + B^L = T"
   (COND
-    ((> l 1) ;If we are not on the last iteration we call the l - 1 and get b^L (current L)
-      (+ (expt b L) (operator b (1- L) total))
+    ((> l 1) ;If we are not on the last iteration we call the L - 1 and get b^L (current L)
+      (+ (expt b l) (operator b (1- l) total))
     )
-    ((>= l 1) ;When we are on the last L (1) we use the total
+    (T ;When we are on the last L (1) we use the total
       (- b total)
     )
-
   )
 )
