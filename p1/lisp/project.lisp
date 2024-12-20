@@ -71,7 +71,7 @@
   "Method to allow the user to choose a max-depth"
   (PROGN
     (FORMAT T "~%~%Max Depth~%")
-    (ask-number 9999)
+    (1+ (ask-number 9999))
   )
 )
 

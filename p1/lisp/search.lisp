@@ -110,7 +110,7 @@
     (PROGN
       (format-node (CAR opened-list)) ;Print to see if algorithhm is working
       ;Validate the current node depth
-      (IF (> (FUNCALL (dependency-depth dependencies) (CAR opened-list)) max-depth) ;Current node depth is higher than the max allowed depth
+      (IF (>= (FUNCALL (dependency-depth dependencies) (CAR opened-list)) max-depth) ;Current node depth is higher than the max allowed depth
         (df dependencies max-depth (CDR opened-list) (CONS (CAR opened-list) closed-list)) ;Go to next iteration without spawning successors
 
         ;Max depth not reach so keep executing
