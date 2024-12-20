@@ -92,9 +92,9 @@ LI:before { content: counters(item, ".") ". "; counter-increment: item }
 
 # 4. Exemplo de aplicação
 <p>Ao fazer "(start)" ao programa, será apresentado um menu inicial que pede ao utilizador para indicar qual problema quer resolver. Este deve escolher o número correspondente ao problema.</p>
-<img src="./markdown/M1.png" alt="Menu problema"></img>
+<img src="./Imagens/M1.png" alt="Menu problema"></img>
 <p>Tendo já escolhido o problema, o utilizador passa ao menu seguinte que tem como objetivo escolher o algoritmo a utilizar na resolução do problema. Novamente, este deve escolher o respetivo número.</p>
-<img src="./markdown/M2.png" alt="Menu algoritmo"></img>
+<img src="./Imagens/M2.png" alt="Menu algoritmo"></img>
 <p>De seguida, o algoritmo começa a trabalhar na resolução do problema. Se terminar, exibe no terminal e cria um ficheiro com estatísticas relativas à resolução. Esses dados são o número de nós expandidos e gerados, o tempo que demorou a resolver e todos os passos até à solução.</p>
-<img src="./markdown/M3.png" alt="Estatistica resolução"></img>
+<img src="./Imagens/M3.png" alt="Estatistica resolução"></img>
 <p>Após terminar a resolução do problema, o utilizador pode repetir todo o processo utilizando diferentes problemas e algoritmos.</p>
