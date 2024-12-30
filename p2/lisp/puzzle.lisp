@@ -1,6 +1,6 @@
 ; (IN-PACKAGE :puzzle)
 
-;Node related methods
+;;;Node related methods
 (DEFUN constructor (state playing-row &key (play NIL) (parent NIL) (points '(0 0)))
   "Method to create a new node with the given params"
   "The points are related to the points of each player of each line, so the first value is the points that the player of the row 0 has"
@@ -40,23 +40,6 @@
   (NTH 5 node)
 )
 
-(DEFUN oposite-playing-row (playing-row)
-  (IF (= playing-row 1)
-    0
-    1
-  )
-)
-
-;Test: (add-points '(0 1) 0 5)
-;Results: (5 1)
-(DEFUN add-points (points-list row points)
-  "Recieves a list of points and add the given points to the right element"
-  (IF (<= row 0)
-      (CONS (+ (NTH 0 points-list) points) (CDR points-list))
-      (CONS (CAR points-list) (add-points (CDR points-list) (1- row) points)) ;Goes to next iteration
-  )
-)
-
 ;Test: (is-solution (constructor '((0 0 0 0 0 0) (0 0 0 0 0 1)) 0))
 (DEFUN is-solution (node &aux (node-state (get-state node)))
   "Verifies is the given nodes is have the final state"
@@ -72,11 +55,11 @@
   "Method to get a cell value from a node-state"
   (NTH column (NTH row node-state))
 )
-;Node related methods
+;;;Node related methods
 
 
 
-;Operation aux
+;;;Operation aux
 (DEFUN swap-in-row (row column &optional (value 0))
   "Method to swap the given column on the row(list) and set the number on that given column"
   (IF (<= column 0)
@@ -108,30 +91,30 @@
   )
 )
 
-(DEFUN get-destribution (node-state row column &optional (amount (get-state-cell node-state row column)) (initial-row row) (initial-column column))
+(DEFUN get-distribution (node-state row column &optional (amount (get-state-cell node-state row column)) (initial-row row) (initial-column column))
   "Method to calculate the distribution list from a state and cell"
   (COND
     ((= 0 amount) NIL)
     ((= row 1)
       (COND
         ((AND (= row initial-row) (= column initial-column)) ;Verifies if is the start cell
-          (APPEND NIL (get-destribution node-state row (1+ column) amount initial-row initial-column))
+          (APPEND NIL (get-distribution node-state row (1+ column) amount initial-row initial-column))
         )
         ((>= column 6)
-          (APPEND NIL (get-destribution node-state 0 5 amount initial-row initial-column))
+          (APPEND NIL (get-distribution node-state 0 5 amount initial-row initial-column))
         )
-        (T (CONS (LIST row column) (get-destribution node-state row (1+ column) (1- amount) initial-row initial-column)))
+        (T (CONS (LIST row column) (get-distribution node-state row (1+ column) (1- amount) initial-row initial-column)))
       )
     )
     ((= row 0)
       (COND
         ((AND (= row initial-row) (= column initial-column)) ;Verifies if is the start cell
-          (APPEND NIL (get-destribution node-state row (1- column) amount initial-row initial-column))
+          (APPEND NIL (get-distribution node-state row (1- column) amount initial-row initial-column))
         )
         ((< column 0)
-          (APPEND NIL (get-destribution node-state 1 0 amount initial-row initial-column))
+          (APPEND NIL (get-distribution node-state 1 0 amount initial-row initial-column))
         )
-        (T (CONS (LIST row column) (get-destribution node-state row (1- column) (1- amount) initial-row initial-column)))
+        (T (CONS (LIST row column) (get-distribution node-state row (1- column) (1- amount) initial-row initial-column)))
       )
     )
   )
@@ -151,70 +134,94 @@
     )
   )
 )
-;Operation aux
+;;;Operation aux
 
 
 
-;Operation
+;;;Operations
 ;Test: (operation '((4 4 4 4 4 4) (4 4 4 4 4 4)) 0 0)
 ;Result: (((0 4 4 4 4 4) (5 5 5 0 4 4)) 5)
-(DEFUN operation (node-state row column &optional (dist-list (get-destribution node-state row column (get-state-cell node-state row column))) (removed-pieces 0))
-  "Method to recieve a node state and execute the play on the given cell"
-  "dist-list is the list of cells that will be played because of this (row column)"
-  "row and column will not be used outside of when this method is called to get the dist-list"
-  "The row is the 'playing-row' that the node is allowed to play, it is true because this method is to be called after the get-distribution from the node that has the original state"
+(DEFUN operation (node-state row column &optional (dist-list (get-distribution node-state row column (get-state-cell node-state row column))) (removed-pieces 0))
+  "
+    Arguments:
+      - node-state (list): List holding the node state.
+      - row (integer)
+      - column (integer)
+
+    Aux Arguments:
+      - &optional dist-list (list): List of coordinates to distribute pieces.
+      - &optional removed-pieces (integer): Amount of pieces that were removed
+
+    Returns: A new node state where all the pieces on the original (row column) were distributed on the counter-clock wise cells.
+
+    Having a node state and a coordinate, get the amount of pieces on that cell and distribute them counter-clock wise on the whole board.
+    Increment one piece on every cell that the 'get-distribution' method says its to distribute, this will recursively call this method and saving the new value on the node state argument.
+    On the last distribution verifies if we are on the oposite row from the staring 'row' argument, if yes we remove the pieces if the amount on the cell is 1 or 3 or 5.
+    Saves the amount of removed pieces and then return a list with the new node state originated from the original one with the amount of pieces that were removed.
+  "
+
+  ;;Verifies if the dist-list is NIL
+  ;;  If yes, means we finished the operation so we can finaly swap the starting cell to 0 and return the new node-state and the amount of removed pieces
+  ;;  If not, we continue executing the operation on the recieved node-state
   (COND
-    ((NULL dist-list) ;When dist-list is empty return the last node-state created, here will swap the played cell to 0
-      (LIST
-        (swap node-state row column 0) ;Return the node
-        removed-pieces ;Return the amount of pieces that were removed on the previous play
-      )
+    ((NULL dist-list) 
+      (LIST (swap node-state row column 0) removed-pieces)
     )
-    (T ;Dist-list is not empty keep the operation going
+    (T
+      ;;Get the first row and column from the dist-list, those are the coordinates that its gonna be incremented at
       (LET (
-          (dist-row (NTH 0 (CAR dist-list))) ;Get the row of the first distribution
-          (dist-column (NTH 1 (CAR dist-list))) ;Get the column of the first distribution
+          (dist-row (NTH 0 (CAR dist-list)))
+          (dist-column (NTH 1 (CAR dist-list)))
         )
+        ;;Verifies if we are on the last element of the dist-list (meaning its the last increment that is going to happen)
+        ;;  If yes, keep executing doing validation to remove or not pieces
+        ;;  If not, execute the increment on the cell and current node-state and send it to the next iteration of this method, sending the rest of the dist-list
         (COND
-          ((= 1 (LENGTH dist-list)) ;We are on the last distribution, need to verify if its to remove values
+          ((= 1 (LENGTH dist-list))
+            ;;Verifies if we the current distribution row is the same as the first row sended to the method
+            ;;  If yes, the rules say we dont remove any pieces, so execute the normal increment and send to the next iteration the dist-list as NIL
+            ;;  If not, its verified if the pieces on the cell are going to be 1 or 3 or 5 to remove or not
             (IF (= dist-row row)
-              (operation (increment node-state dist-row dist-column) row column NIL) ;Dont remove because the last distribution is on the row that is playing (execute normaly)
-              (LET* ( ;Remove if the pieces = 1/3/5, we are on diff row than the playing row
-                  (incremented-state (increment node-state dist-row dist-column)) ;Increment first
-                  (pieces (get-state-cell incremented-state dist-row dist-column)) ;Get the amount of pieces on the cell after increment
+              (operation (increment node-state dist-row dist-column) row column NIL)
+              ;;Get the pieces on the cell to execute the distribution at, before the increment
+              (LET* (
+                  (pieces-before-increment (get-state-cell node-state dist-row dist-column))
                 )
-                (IF (OR (= pieces 1) (= pieces 3) (= pieces 5)) ;Replace if after the increment we have 1/3/5 pieces on the cell
-                  (operation (swap incremented-state dist-row dist-column 0) row column NIL pieces)
-                  (operation incremented-state row column NIL) ;The last pieces amount was not valid to remove, so dont swap to 0
+                ;;Verifies if the amount of pieces before the increment is 0 or 2 or 4
+                ;;  If yes, by the rules, after the increment the pieces on the cell are going to be 1 or 3 or 5 meaning they have to be removed, and that cell swap to 0 pieces (they got removed)
+                ;;  If not, just do a normal increment and send dist-list as NIL to last iteration
+                (IF (OR (= pieces-before-increment 0) (= pieces-before-increment 2) (= pieces-before-increment 4))
+                  (operation (swap node-state dist-row dist-column 0) row column NIL (1+ pieces-before-increment))
+                  (operation (increment node-state dist-row dist-column) row column NIL)
                 )
               )
             )
           )
-          (T ;Increment the pieces on the current (row column) and send the created state to next iteration
-            (operation (increment node-state dist-row dist-column) row column (CDR dist-list))
-          )
+          (T (operation (increment node-state dist-row dist-column) row column (CDR dist-list)))
         )
       )
     )
   )
 )
-;Operations
+;;;Operations
 
 
 
-;Spawner
+;;;Spawner
 ;Test: (node-spawner (constructor '((4 4 4 4 4 4) (4 4 4 4 4 4)) 0) 0 0)
 ;Result: ((0 0) ((0 4 4 4 4 4) (5 5 5 0 4 4)) (5 0) 1 (NIL ((4 4 4 4 4 4) (4 4 4 4 4 4)) (0 0) 0 NIL 0) 1)
 (DEFUN node-spawner (node-parent row column) 
   "Method to spawn a new node doing the operation on the given cell, this has to be only done on row&columns"
   "combinations that the get-available-operations return"
   "The return of the operation will originate a new node with the playing-row being the oposite of the parent node"
-  (LET (
-      (parent-points (get-points node-parent)) ;Get the points list of the parent
-      (oposite-playing-row (oposite-playing-row (get-playing-row node-parent))) ;Get the oposite playing row from the parent node
+  (LET* (
       (spawned (operation (get-state node-parent) row column)) ;Get a new state applying the given operator and the amount of removed pieces
+
+      (oposite-row (swap-playing-row (get-playing-row node-parent))) ;Get the oposite row of the one that was just played
+      (spawned-points (NTH 1 spawned)) ;Get from the operation the points that were removed from the execution of it
+      (concat-points-list (add-points-to-list (get-points node-parent) row spawned-points)) ;Concat to the parent points the points returned from the operation, placing them on the execution row
     )
-    (constructor (NTH 0 spawned) oposite-playing-row :play (LIST row column) :parent node-parent :points (add-points parent-points row (NTH 1 spawned)))
+    (constructor (NTH 0 spawned) oposite-row :play (LIST row column) :parent node-parent :points concat-points-list)
   )
 )
 
@@ -225,4 +232,94 @@
     (get-available-operators node-parent) ;Get the available operators of the given node, this will only generate operator of the row that can play
   )
 )
-;Spawner
+;;;Spawner
+
+
+
+;;;Aux
+;Test: (swap-playing-row 1)
+;Results: 0
+(DEFUN swap-playing-row (playing-row)
+  "Method to recieve the playing row and swap it for the opposite row"
+  (IF (= playing-row 1) 0 1)
+)
+
+;Test: (add-points-to-list '(0 1) 0 5)
+;Results: (5 1)
+(DEFUN add-points-to-list (points-list row points)
+  "Recieves a list of points and add the given points to the right element"
+  (IF (<= row 0)
+      (CONS (+ (NTH 0 points-list) points) (CDR points-list))
+      (CONS (CAR points-list) (add-points-to-list (CDR points-list) (1- row) points)) ;Goes to next iteration
+  )
+)
+
+(DEFUN get-points-top (node)
+  "
+    Arguments:
+      - node (list): Node 'object'
+
+    Returns: The points of the top row
+  "
+  (NTH 0 (get-points node))
+)
+
+(DEFUN get-points-bottom (node)
+  "
+    Arguments:
+      - node (list): Node 'object'
+
+    Returns: The points of the bottom row
+  "
+  (NTH 1 (get-points node))
+)
+
+(DEFUN cell-in-operators (cell operators)
+  "
+    Arguments:
+      - cell (integer integer): Coordinates of the cell
+      - operators (list): List of coordinates
+
+    Returns: If the wanted cell is one of the available operators
+  "
+  ;;If the operators is empty means there is nothing more to compare with, meaning the cell was not valid
+  ;;If the cell is equal to the CAR of the operators its a valid cell
+  ;;If none of those cases keep execution recursively to verify with all the operators
+  (COND
+    ((NULL operators) NIL)
+    ((EQUAL cell (CAR operators)) T)
+    (T (cell-in-operators cell (CDR operators)))
+  )
+)
+;;;Aux
+
+
+
+;;;Style
+;Test: (print-node (constructor '((4 4 4 4 4 4) (4 4 4 4 4 4)) 0))
+(DEFUN print-node (node)
+  (LET (
+      (cell-0-0 (get-state-cell (get-state node) 0 0))
+      (cell-0-1 (get-state-cell (get-state node) 0 1))
+      (cell-0-2 (get-state-cell (get-state node) 0 2))
+      (cell-0-3 (get-state-cell (get-state node) 0 3))
+      (cell-0-4 (get-state-cell (get-state node) 0 4))
+      (cell-0-5 (get-state-cell (get-state node) 0 5))
+
+      (cell-1-0 (get-state-cell (get-state node) 1 0))
+      (cell-1-1 (get-state-cell (get-state node) 1 1))
+      (cell-1-2 (get-state-cell (get-state node) 1 2))
+      (cell-1-3 (get-state-cell (get-state node) 1 3))
+      (cell-1-4 (get-state-cell (get-state node) 1 4))
+      (cell-1-5 (get-state-cell (get-state node) 1 5))
+    )
+    (PROGN
+      (FORMAT T "Board: ~a|~a|~a|~a|~a|~a   Points Top row: ~a~%" cell-0-0 cell-0-1 cell-0-2 cell-0-3 cell-0-4 cell-0-5 (get-points-top node))
+      (FORMAT T "       -----------~%")
+      (FORMAT T "       ~a|~a|~a|~a|~a|~a   Points Bottom row: ~a~%" cell-1-0 cell-1-1 cell-1-2 cell-1-3 cell-1-4 cell-1-5 (get-points-bottom node))
+
+      (VALUES)
+    )
+  )
+)
+;;;Style
