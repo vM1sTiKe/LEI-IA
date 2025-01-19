@@ -70,14 +70,14 @@
   )
 )
 
-(DEFUN pc-vs-pc (&optional (node (puzzle::constructor '((8 8 8 8 8 8) (8 8 8 8 8 8))) ))
+(DEFUN pc-vs-pc (&optional (node (constructor T) ))
   (IF (get-winner node)
     (winner (get-winner node))
     (pc-vs-pc (pc-play node))
   )
 )
 
-(DEFUN human-vs-pc (is-ai &optional (node (puzzle::constructor '((2 2 2 2 2 2) (2 2 2 2 2 2))) ))
+(DEFUN human-vs-pc (is-ai &optional (node (constructor) ))
   "
     Arguments:
       - is-ai (bool): Stating if is AI playing.
@@ -91,8 +91,10 @@
   )
 )
 
-(DEFUN human-vs-human (&optional (node (puzzle::constructor '((2 2 2 2 2 2) (2 2 2 2 2 2))) ))
-  ;(puzzle::constructor '((8 8 8 8 8 8) (8 8 8 8 8 8)))
+(DEFUN human-vs-human (&optional (node (constructor) ))
+  "
+    Method to do a game between two humans
+  "
   (IF (get-winner node)
     (winner (get-winner node))
     (human-vs-human (human-play node))
@@ -111,6 +113,7 @@
       )
       (PROGN
         (FORMAT T "~%~%~%")
+        (print-node node)
         (FORMAT T "AI Played at column: ~a" (1+ (NTH 1 (NTH 0 algorithm-play))))
         algorithm-play
       )
@@ -176,11 +179,21 @@
 )
 ;;; Plays
 
-(DEFUN teste ()
-  (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution (puzzle::constructor '((1 0 1 0 0 0) (1 1 0 2 1 0))) 10)
-)
+
 
 ;;; Auxiliar methods to call puzzle methods
+(DEFUN constructor (&optional (big NIL))
+  "
+    Arguments
+      - big (Boolean) Optional
+
+    Returns: New node being a full board of 8's or 2's depending if is big or not.
+  "
+  (IF big
+    (puzzle::constructor '((8 8 8 8 8 8) (8 8 8 8 8 8)))
+    (puzzle::constructor '((2 2 2 2 2 2) (2 2 2 2 2 2)))
+  )
+)
 (DEFUN algorithm (node)
   "
     Arguments:
