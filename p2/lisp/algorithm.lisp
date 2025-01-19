@@ -53,12 +53,9 @@
     ((FUNCALL *terminal* node)
       (LIST (* (IF is-max-player 1 -1) (* depth (FUNCALL *heuristic* node))) node)
     )
-    ; Pseudo leaf
-    ((ZEROP depth)
+    ; Pseudo leaf (depth 0 or has no possible nodes)
+    ((OR (ZEROP depth) (NULL (FUNCALL *spawner* node)))
       (LIST (* (IF is-max-player 1 -1) (FUNCALL *heuristic* node)) node)
-    )
-    ((NULL (FUNCALL *spawner* node)) ;Here if its not possible to spawn anymore nodes it stops it as 0
-      (LIST 0 node)
     )
     ;minimax helpers
     (is-max-player (max-node (FUNCALL *spawner* node) depth alpha beta))
