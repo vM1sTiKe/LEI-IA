@@ -38,7 +38,7 @@
         ((OR (< option 1) (> option 3)) (play T)) ;Invalid option
         ((= option 3) (human-vs-human)) ;PvP selected
         ((= option 1) (human-vs-pc-pre-match)) ;PvE selected
-        ((= option 2) (pc-vs-pc)) ;EvE selected
+        ((= option 2) (time (pc-vs-pc))) ;EvE selected
       )
     )
   )

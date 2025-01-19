@@ -41,38 +41,42 @@
         ; (set-heuristic NIL)
         ; (set-terminal NIL)
         ; evaluation
-        (NTH 1 evaluation)
+        ; (FORMAT T "~a~%" evaluation)
+        (NTH 0 evaluation)
       )
     )
   )
 )
 
 (DEFUN core (node depth &optional (alpha most-negative-fixnum) (beta most-positive-fixnum) (is-max-player T))
-  (COND
-    ; Leaf node (meaning its a final node)
-    ((FUNCALL *terminal* node)
-      (LIST (* (IF is-max-player 1 -1) (* depth (FUNCALL *heuristic* node))) node)
+  (LET (
+      (positive-negative (IF is-max-player 1 -1))
     )
-    ; Pseudo leaf (depth 0 or has no possible nodes)
-    ((OR (ZEROP depth) (NULL (FUNCALL *spawner* node)))
-      (LIST (* (IF is-max-player 1 -1) (FUNCALL *heuristic* node)) node)
+    (COND
+      ((FUNCALL *terminal* node) ;Leaf node. its gona have a influece on the heuristic value because its a leaf
+        (LIST node (* positive-negative (1+ depth) (FUNCALL *heuristic* node)))
+      )
+      ((OR (ZEROP depth) (NULL (FUNCALL *spawner* node))) ;Pseudo leaf, last depth or no children
+        (LIST node (* positive-negative (FUNCALL *heuristic* node)))
+      )
+      (is-max-player (max-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax maximizer helper
+      (T (min-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax minimizer helper
     )
-    ;minimax helpers
-    (is-max-player (max-node (FUNCALL *spawner* node) depth alpha beta))
-    (T (min-node (FUNCALL *spawner* node) depth alpha beta))
   )
 )
 
 (DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL))
   (IF (NULL children)
-    (LIST value node)
+    (LIST node value)
     (LET* (
+        (core-evaluation (core (CAR children) (1- children-depth) alpha beta NIL)) ;Execute the minimax evaluation
+
         (old-value value) ;saves the old value
-        (value (max value (FIRST (core (CAR children) (1- children-depth) alpha beta NIL))))
+        (value (max value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
-      (IF (>= value beta) ;Fail hard, beta cut
-        (LIST value node)
+      (IF (> value beta) ;Fail hard, beta cut
+        (LIST node value)
         (max-node (CDR children) children-depth (max alpha value) beta value node)
       )
     )
@@ -81,16 +85,58 @@
 
 (DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL))
   (IF (NULL children)
-    (LIST value node)
+    (LIST node value)
     (LET* (
+        (core-evaluation (core (CAR children) (1- children-depth) alpha beta T)) ;Execute the minimax evaluation
+
         (old-value value) ;saves the old value
-        (value (min value (FIRST (core (CAR children) (1- children-depth) alpha beta T))))
+        (value (min value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
-      (IF (<= value alpha) ;Fail hard, alpha cut
-        (LIST value node)
-        (min-node (CDR children) children-depth (min beta value) beta value node)
+      (IF (< value alpha) ;Fail hard, alpha cut
+        (LIST node value)
+        (min-node (CDR children) children-depth alpha (min beta value) value node)
       )
     )
   )
 )
+
+; (DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
+;   (IF (NULL children)
+;     (LIST node value alpha-cuts beta-cuts)
+;     (LET* (
+;         (core-evaluation (core (CAR children) (1- children-depth) alpha beta NIL))
+;         (alpha-cuts (NTH 2 core-evaluation)) ;Get the amount of alpha cuts
+;         (beta-cuts (NTH 3 core-evaluation)) ;Get the amount of beta cuts
+
+;         (old-value value) ;saves the old value
+;         (value (max value (NTH 1 core-evaluation)))
+;         (node (IF (NOT (= old-value value)) (CAR children) node))
+;       )
+;       (IF (> value beta) ;Fail hard, beta cut
+;         (LIST node value alpha-cuts (1+ beta-cuts))
+;         (max-node (CDR children) children-depth (max alpha value) beta value node alpha-cuts beta-cuts)
+;       )
+;     )
+;   )
+; )
+
+; (DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
+;   (IF (NULL children)
+;     (LIST node value alpha-cuts beta-cuts)
+;     (LET* (
+;         (core-evaluation (core (CAR children) (1- children-depth) alpha beta T)) ;Execute the minimax evaluation
+;         (alpha-cuts (+ alpha-cuts (NTH 2 core-evaluation))) ;Get the amount of alpha cuts
+;         (beta-cuts (+ beta-cuts (NTH 3 core-evaluation))) ;Get the amount of beta cuts
+
+;         (old-value value) ;saves the old value
+;         (value (min value (NTH 1 core-evaluation)))
+;         (node (IF (NOT (= old-value value)) (CAR children) node))
+;       )
+;       (IF (< value alpha) ;Fail hard, alpha cut
+;         (LIST node value (1+ alpha-cuts) beta-cuts)
+;         (min-node (CDR children) children-depth alpha (min beta value) value node alpha-cuts beta-cuts)
+;       )
+;     )
+;   )
+; )
