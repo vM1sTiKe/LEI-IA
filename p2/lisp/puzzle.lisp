@@ -1,7 +1,7 @@
-; (IN-PACKAGE :puzzle)
+(IN-PACKAGE :puzzle)
 
 ;;;Node related methods
-(DEFUN constructor (state playing-row &key (play NIL) (parent NIL) (points '(0 0)))
+(DEFUN constructor (state &optional (playing-row 0) &key (play NIL) (points '(0 0)))
   "Method to create a new node with the given params"
   "The points are related to the points of each player of each line, so the first value is the points that the player of the row 0 has"
   "the second value is the points that the player of the row 1 has"
@@ -9,9 +9,28 @@
     play ;coordinates that were used to get to this node
     state ;List with the state of the board
     points ;List with points from the players (p1 p2), points are the amount of pieces removed
-    (IF (NULL parent) 0 (1+ (get-depth parent)))
-    parent
     playing-row ;Row that this node can be played at
+  )
+)
+
+(DEFUN heuristic (node)
+  "Method to do an heuristic evaluation of the given node, and the player playing"
+  (LET* (
+      (playing-row (get-playing-row node))
+      (oposite-row (swap-playing-row playing-row))
+
+      (points-playing-row (* 10 (get-row-points node playing-row)))
+      (points-oposite-row (* 10 (get-row-points node oposite-row)))
+    )
+    (IF (is-solution node)
+      (IF (> points-playing-row points-oposite-row) 999 -999)
+      (LET* (
+          (empty-cells-playing-row (* 2 (get-row-empty-cells node playing-row)))
+          (empty-cells-oposite-row (get-row-empty-cells node oposite-row))
+        )
+        (+ points-playing-row (- points-oposite-row) empty-cells-playing-row (- empty-cells-oposite-row))
+      )
+    )
   )
 )
 
@@ -25,19 +44,9 @@
   (NTH 2 node)
 )
 
-(DEFUN get-depth (node)
-  "Returns the depth value of the given node"
-  (NTH 3 node)
-)
-
-(DEFUN get-parent (node)
-  "Returns the depth value of the given node"
-  (NTH 4 node)
-)
-
 (DEFUN get-playing-row (node)
   "Returns the playing row, what row this node can be played at"
-  (NTH 5 node)
+  (NTH 3 node)
 )
 
 ;Test: (is-solution (constructor '((0 0 0 0 0 0) (0 0 0 0 0 1)) 0))
@@ -49,6 +58,34 @@
     )
     (ZEROP (+ (APPLY #'+ top-row) (APPLY #'+ bot-row))) ;Sums both rows and verify if is 0
   )
+)
+
+(DEFUN get-winner (node)
+  "
+    Arguments:
+      - node (Node)
+
+    Returns: The winner.
+
+    Verifies if is the final node and returns the winner, otherwise NIL.
+  "
+  (COND
+    ((NULL (is-solution node)) NIL)
+    ((= (get-row-points node 0) (get-row-points node 1)) T)
+    (T (IF (> (get-row-points node 0) (get-row-points node 1)) 0 1)) ;Return the winner being the row 0 or row 1
+  )
+)
+
+(DEFUN can-node-play (node)
+  "
+    Arguments:
+      - node (Node)
+    
+    Returns: Boolean
+
+    Verifies if the node can play, checking if there is available operators.
+  "
+  (NULL (NULL (get-available-operators node)))
 )
 
 (DEFUN get-state-cell (node-state row column)
@@ -217,15 +254,15 @@
   (LET* (
       (spawned (operation (get-state node-parent) row column)) ;Get a new state applying the given operator and the amount of removed pieces
 
-      (oposite-row (swap-playing-row (get-playing-row node-parent))) ;Get the oposite row of the one that was just played
+      (oposite-row (swap-playing-row row)) ;Get the oposite row of the one that was just played
       (spawned-points (NTH 1 spawned)) ;Get from the operation the points that were removed from the execution of it
       (concat-points-list (add-points-to-list (get-points node-parent) row spawned-points)) ;Concat to the parent points the points returned from the operation, placing them on the execution row
     )
-    (constructor (NTH 0 spawned) oposite-row :play (LIST row column) :parent node-parent :points concat-points-list)
+    (constructor (NTH 0 spawned) oposite-row :play (LIST row column) :points concat-points-list)
   )
 )
 
-(DEFUN nodes-spawner (node-parent)
+(DEFUN spawner (node-parent)
   "Method to generate the successors of the given node"
   (MAPCAR #'
     (LAMBDA (coord &aux (row (FIRST coord)) (column (SECOND coord))) (node-spawner node-parent row column))
@@ -234,6 +271,15 @@
 )
 ;;;Spawner
 
+(DEFUN skip (node-parent)
+  "
+    Arguments:
+      - node-parent (Node)
+    
+    Returns: New node skipping the player turn.
+  "
+  (constructor (get-state node-parent) (swap-playing-row (get-playing-row node-parent)) :play (NTH 0 node-parent) :points (get-points node-parent))
+)
 
 
 ;;;Aux
@@ -254,26 +300,6 @@
   )
 )
 
-(DEFUN get-points-top (node)
-  "
-    Arguments:
-      - node (list): Node 'object'
-
-    Returns: The points of the top row
-  "
-  (NTH 0 (get-points node))
-)
-
-(DEFUN get-points-bottom (node)
-  "
-    Arguments:
-      - node (list): Node 'object'
-
-    Returns: The points of the bottom row
-  "
-  (NTH 1 (get-points node))
-)
-
 (DEFUN cell-in-operators (cell operators)
   "
     Arguments:
@@ -291,12 +317,37 @@
     (T (cell-in-operators cell (CDR operators)))
   )
 )
+
+(DEFUN get-row-empty-cells (node row)
+  "
+    Arguments:
+      - node (Node)
+      - row ({0,1})
+
+    Returns: Amount of empty cells on the given row
+  "
+  (APPLY #'+ (MAPCAR #'
+    (LAMBDA(cell) (IF (ZEROP cell) 1 0))
+    (NTH row (get-state node)) ;Get the row from the state
+  ))  
+)
+
+(DEFUN get-row-points (node row)
+  "
+    Arguments:
+      - node (Node)
+      - row ({0,1})
+
+    Returns: Amount of points of the given row
+  "
+  (NTH row (get-points node)) 
+)
 ;;;Aux
 
 
 
 ;;;Style
-;Test: (print-node (constructor '((4 4 4 4 4 4) (4 4 4 4 4 4)) 0))
+;Test: (print-node (constructor '((4 4 4 4 4 4) (4 4 4 4 4 4))))
 (DEFUN print-node (node)
   (LET (
       (cell-0-0 (get-state-cell (get-state node) 0 0))
@@ -314,9 +365,9 @@
       (cell-1-5 (get-state-cell (get-state node) 1 5))
     )
     (PROGN
-      (FORMAT T "Board: ~a|~a|~a|~a|~a|~a   Points Top row: ~a~%" cell-0-0 cell-0-1 cell-0-2 cell-0-3 cell-0-4 cell-0-5 (get-points-top node))
+      (FORMAT T "Board: ~a|~a|~a|~a|~a|~a   Points Top row: ~a~%" cell-0-0 cell-0-1 cell-0-2 cell-0-3 cell-0-4 cell-0-5 (get-row-points node 0))
       (FORMAT T "       -----------~%")
-      (FORMAT T "       ~a|~a|~a|~a|~a|~a   Points Bottom row: ~a~%" cell-1-0 cell-1-1 cell-1-2 cell-1-3 cell-1-4 cell-1-5 (get-points-bottom node))
+      (FORMAT T "       ~a|~a|~a|~a|~a|~a   Points Bottom row: ~a~%" cell-1-0 cell-1-1 cell-1-2 cell-1-3 cell-1-4 cell-1-5 (get-row-points node 1))
 
       (VALUES)
     )
