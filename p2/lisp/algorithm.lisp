@@ -41,7 +41,7 @@
         ; (set-heuristic NIL)
         ; (set-terminal NIL)
         ; evaluation
-        ; (FORMAT T "~a~%" evaluation)
+        (FORMAT T "~a~%" evaluation)
         (NTH 0 evaluation)
       )
     )
@@ -65,78 +65,42 @@
   )
 )
 
-(DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL))
+(DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
-    (LIST node value)
+    (LIST node value alpha-cuts beta-cuts)
     (LET* (
         (core-evaluation (core (CAR children) (1- children-depth) alpha beta NIL)) ;Execute the minimax evaluation
+        (alpha-cuts (+ alpha-cuts (OR (NTH 2 core-evaluation) 0))) ;Get the amount of alpha cuts
+        (beta-cuts (+ beta-cuts (OR (NTH 3 core-evaluation) 0))) ;Get the amount of beta cuts
 
         (old-value value) ;saves the old value
         (value (max value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
       (IF (> value beta) ;Fail hard, beta cut
-        (LIST node value)
-        (max-node (CDR children) children-depth (max alpha value) beta value node)
+        (LIST node value alpha-cuts (1+ beta-cuts))
+        (max-node (CDR children) children-depth (max alpha value) beta value node alpha-cuts beta-cuts)
       )
     )
   )
 )
 
-(DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL))
+(DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
-    (LIST node value)
+    (LIST node value alpha-cuts beta-cuts)
     (LET* (
         (core-evaluation (core (CAR children) (1- children-depth) alpha beta T)) ;Execute the minimax evaluation
+        (alpha-cuts (+ alpha-cuts (OR (NTH 2 core-evaluation) 0))) ;Get the amount of alpha cuts
+        (beta-cuts (+ beta-cuts (OR (NTH 3 core-evaluation) 0))) ;Get the amount of beta cuts
 
         (old-value value) ;saves the old value
         (value (min value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
       (IF (< value alpha) ;Fail hard, alpha cut
-        (LIST node value)
-        (min-node (CDR children) children-depth alpha (min beta value) value node)
+        (LIST node value (1+ alpha-cuts) beta-cuts)
+        (min-node (CDR children) children-depth alpha (min beta value) value node alpha-cuts beta-cuts)
       )
     )
   )
 )
-
-; (DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
-;   (IF (NULL children)
-;     (LIST node value alpha-cuts beta-cuts)
-;     (LET* (
-;         (core-evaluation (core (CAR children) (1- children-depth) alpha beta NIL))
-;         (alpha-cuts (NTH 2 core-evaluation)) ;Get the amount of alpha cuts
-;         (beta-cuts (NTH 3 core-evaluation)) ;Get the amount of beta cuts
-
-;         (old-value value) ;saves the old value
-;         (value (max value (NTH 1 core-evaluation)))
-;         (node (IF (NOT (= old-value value)) (CAR children) node))
-;       )
-;       (IF (> value beta) ;Fail hard, beta cut
-;         (LIST node value alpha-cuts (1+ beta-cuts))
-;         (max-node (CDR children) children-depth (max alpha value) beta value node alpha-cuts beta-cuts)
-;       )
-;     )
-;   )
-; )
-
-; (DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
-;   (IF (NULL children)
-;     (LIST node value alpha-cuts beta-cuts)
-;     (LET* (
-;         (core-evaluation (core (CAR children) (1- children-depth) alpha beta T)) ;Execute the minimax evaluation
-;         (alpha-cuts (+ alpha-cuts (NTH 2 core-evaluation))) ;Get the amount of alpha cuts
-;         (beta-cuts (+ beta-cuts (NTH 3 core-evaluation))) ;Get the amount of beta cuts
-
-;         (old-value value) ;saves the old value
-;         (value (min value (NTH 1 core-evaluation)))
-;         (node (IF (NOT (= old-value value)) (CAR children) node))
-;       )
-;       (IF (< value alpha) ;Fail hard, alpha cut
-;         (LIST node value (1+ alpha-cuts) beta-cuts)
-;         (min-node (CDR children) children-depth alpha (min beta value) value node alpha-cuts beta-cuts)
-;       )
-;     )
-;   )
-; )

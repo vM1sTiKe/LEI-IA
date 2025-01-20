@@ -113,7 +113,7 @@
       )
       (PROGN
         (FORMAT T "~%~%~%")
-        (print-node node)
+        ; (print-node node)
         (FORMAT T "AI Played at column: ~a" (1+ (NTH 1 (NTH 0 algorithm-play))))
         algorithm-play
       )
@@ -201,6 +201,7 @@
 
     Returns: New node selected using the algorithm.
   "
+  ; (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 2)
   (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10)
 )
 (DEFUN skip-turn (node)
