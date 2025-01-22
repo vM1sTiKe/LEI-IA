@@ -4,6 +4,8 @@
 (defparameter *heuristic* NIL)
 (defparameter *terminal* NIL)
 
+(defparameter *algorithm-hash* (make-hash-table))
+
 
 (DEFUN set-spawner (method)
   (setf *spawner* method)
@@ -49,21 +51,27 @@
 )
 
 (DEFUN core (node depth &optional (alpha most-negative-fixnum) (beta most-positive-fixnum) (is-max-player T))
-  (LET (
-      (positive-negative (IF is-max-player 1 -1))
-    )
-    (COND
-      ((FUNCALL *terminal* node) ;Leaf node. its gona have a influece on the heuristic value because its a leaf
-        (LIST node (* positive-negative (1+ depth) (FUNCALL *heuristic* node)))
-      )
-      ((OR (ZEROP depth) (NULL (FUNCALL *spawner* node))) ;Pseudo leaf, last depth or no children
-        (LIST node (* positive-negative (FUNCALL *heuristic* node)))
+  (IF (gethash node *algorithm-hash*) ;Verifies if the node is cached
+    (LIST node (gethash node *algorithm-hash*)) ;Return if cached
+    (COND ;Execute normaly to find the node value
+      ((OR (ZEROP depth) (FUNCALL *terminal* node) (NULL (FUNCALL *spawner* node))) ;If one of the end conditions
+        (LET (
+            (heuristic-value (FUNCALL *heuristic* node)) ;Get the heursitic value of the node
+            (depth-calc (IF (FUNCALL *terminal* node) depth 0)) ;If a node is terminal give him a weight using the depth.
+          ) ; The if validating the is-max-player is to inver the values, meaning if the node evaluation of a min node is negative to THAT PLAYER, means it positive to the max player, needing to flip signal
+          (PROGN
+            ; (setf (gethash node *algorithm-hash*) heuristic-value) ;Link heuristic value to node on the hash-table
+            (LIST node (* (IF is-max-player 1 -1) (1+ depth-calc) heuristic-value)) ;Depth-calc will be the weight or 0, simulating it was found on the last depth, it cannot be 0 because multiplication so increment 1
+          )
+        )
       )
       (is-max-player (max-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax maximizer helper
       (T (min-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax minimizer helper
     )
   )
 )
+
+;Hashtable is half done, cant continue because like there is no memory. LOL
 
 (DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
