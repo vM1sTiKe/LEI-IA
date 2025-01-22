@@ -50,6 +50,22 @@
   )
 )
 
+(DEFUN children-spawner-sorter (node is-max-player)
+  "
+    Arguments
+      - node (Node)
+      - is-max-player (Boolean)
+
+    Returns: Children from the given noded sorted.
+
+    The use of this method makes the algorithm slower... but its asked to exist.
+    No sorting: 1:34 a full game between 2 AIs, on a full 8 board game.
+    Com sorting: 2:28
+  "
+  (SORT (FUNCALL *spawner* node) (IF is-max-player #'< #'>) :key *heuristic*)
+  ; (FUNCALL *spawner* node)
+)
+
 (DEFUN core (node depth &optional (alpha most-negative-fixnum) (beta most-positive-fixnum) (is-max-player T))
   (IF (gethash node *algorithm-hash*) ;Verifies if the node is cached
     (LIST node (gethash node *algorithm-hash*)) ;Return if cached
@@ -65,9 +81,16 @@
           )
         )
       )
-      (is-max-player (max-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax maximizer helper
-      (T (min-node (FUNCALL *spawner* node) depth alpha beta)) ;minimax minimizer helper
+      (is-max-player (max-node (children-spawner-sorter node is-max-player) depth alpha beta)) ;minimax maximizer helper
+      (T (min-node (children-spawner-sorter node is-max-player) depth alpha beta)) ;minimax minimizer helper
     )
+  )
+)
+
+(DEFUN teste (children heuristic)
+  (dolist (child (SORT (COPY-SEQ children) #'> :key heuristic))
+    (FORMAT T "~a~%" (FUNCALL heuristic child))
+    (VALUES)
   )
 )
 
