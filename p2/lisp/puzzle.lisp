@@ -34,6 +34,11 @@
   )
 )
 
+(DEFUN get-play (node)
+  "Returns the play that originated the node"
+  (NTH 0 node)
+)
+
 (DEFUN get-state (node)
   "Returns the state of the given node"
   (NTH 1 node)

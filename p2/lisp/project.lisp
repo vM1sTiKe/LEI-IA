@@ -1,3 +1,5 @@
+(IN-PACKAGE :p202000634-202000584)
+
 (DEFPACKAGE :puzzle)
 (DEFPACKAGE :minimax-alphabeta)
 
@@ -15,7 +17,11 @@
 
     Method to be called on the algorithms championship, it will call the algorithm and return the info given by it.
   "
-  (puzzle::constructor (NTH 0 state) :points (NTH 1 state))
+  (LET (
+      (evaluation (algorithm (puzzle::constructor (NTH 0 state) 0 :points (NTH 1 state))))
+    )
+    (LIST (puzzle::get-play evaluation) (LIST (puzzle::get-state evaluation) (puzzle::get-points evaluation)))
+  )
 )
 
 (DEFUN play (&optional (wrong-input NIL))
