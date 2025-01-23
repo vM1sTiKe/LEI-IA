@@ -37,12 +37,37 @@
         ((NOT (NUMBERP option)) (play T)) ;Not a number
         ((OR (< option 1) (> option 3)) (play T)) ;Invalid option
         ((= option 3) (human-vs-human)) ;PvP selected
-        ((= option 1) (human-vs-pc-pre-match)) ;PvE selected
-        ((= option 2) (time (pc-vs-pc))) ;EvE selected
+        ((= option 1) (human-vs-pc (human-vs-pc-pre-match) (pc-pre-match-memoization))) ;PvE selected
+        ((= option 2) (time (pc-vs-pc (pc-pre-match-memoization)))) ;EvE selected
       )
     )
   )
 )
+
+(DEFUN pc-pre-match-memoization (&optional (wrong-input NIL))
+  "
+    Method to select if is to use memoization
+  "
+  (PROGN
+    (FORMAT T "~%~%~%~%~%")
+    (IF wrong-input (FORMAT T "~%==================~%There was a miss input given, please do it again but with the right inputs~%==================~%"))
+    (format t "Select the use of memoization:~%")
+    (format t "1- Yes~%")
+    (format t "2- No~%")
+    (FORMAT T "Option (1 to 2): ")
+    (LET (
+        (option (READ)) ;Read user input
+      )
+      (COND
+        ((NOT (NUMBERP option)) (pc-pre-match-memoization T)) ;Not a number
+        ((OR (< option 1) (> option 2)) (pc-pre-match-memoization T)) ;Invalid option
+        ((= option 1) T) ;Yes memoization
+        ((= option 2) NIL) ;No memoization
+      )
+    )
+  )
+)
+
 
 
 
@@ -64,20 +89,21 @@
       (COND
         ((NOT (NUMBERP option)) (human-vs-pc-pre-match T)) ;Not a number
         ((OR (< option 1) (> option 2)) (human-vs-pc-pre-match T)) ;Invalid option
-        (T (human-vs-pc (IF (= option 2) T NIL))) ;Start match
+        ((= option 1) NIL) ;Player starts
+        ((= option 2) T) ;AI starts
       )
     )
   )
 )
 
-(DEFUN pc-vs-pc (&optional (node (constructor T) ))
+(DEFUN pc-vs-pc (use-memoization &optional (node (constructor T) ))
   (IF (get-winner node)
     (winner (get-winner node))
-    (pc-vs-pc (pc-play node))
+    (pc-vs-pc use-memoization (pc-play node use-memoization))
   )
 )
 
-(DEFUN human-vs-pc (is-ai &optional (node (constructor) ))
+(DEFUN human-vs-pc (is-ai use-memoization &optional (node (constructor) ))
   "
     Arguments:
       - is-ai (bool): Stating if is AI playing.
@@ -86,8 +112,8 @@
   "
   (COND
     ((get-winner node) (winner (get-winner node))) ;Write who's the winner
-    (is-ai (human-vs-pc (NOT is-ai) (pc-play node))) ;Let AI play
-    (T (human-vs-pc (NOT is-ai) (human-play node))) ;Let player do the play
+    (is-ai (human-vs-pc (NOT is-ai) use-memoization (pc-play node use-memoization))) ;Let AI play
+    (T (human-vs-pc (NOT is-ai) use-memoization (human-play node))) ;Let player do the play
   )
 )
 
@@ -105,11 +131,11 @@
 
 
 ;;; Plays
-(DEFUN pc-play (node)
+(DEFUN pc-play (node use-memoization)
   (IF (no-available-play node)
     (skip-turn node)
     (LET (
-        (algorithm-play (algorithm node))
+        (algorithm-play (algorithm node use-memoization))
       )
       (PROGN
         (FORMAT T "~%~%~%")
@@ -194,15 +220,16 @@
     (puzzle::constructor '((2 2 2 2 2 2) (2 2 2 2 2 2)))
   )
 )
-(DEFUN algorithm (node)
+(DEFUN algorithm (node use-memoization)
   "
     Arguments:
       - node (Node)
+      - use-memoization (Boolean)
 
     Returns: New node selected using the algorithm.
   "
   ; (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 2)
-  (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10)
+  (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)
 )
 (DEFUN skip-turn (node)
   "
