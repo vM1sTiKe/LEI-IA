@@ -19,3 +19,4 @@
 *.wx32fsl
 
 /statistics/*
+log.dat
