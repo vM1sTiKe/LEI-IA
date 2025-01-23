@@ -7,7 +7,7 @@
 
 
 ;;; Methods
-(DEFUN jogar (board execution-time)
+(DEFUN jogar (state execution-time)
   "
     Arguments:
       - state (list)
@@ -15,7 +15,7 @@
 
     Method to be called on the algorithms championship, it will call the algorithm and return the info given by it.
   "
-  (puzzle::constructor (NTH 0 board) :points (NTH 1 board))
+  (puzzle::constructor (NTH 0 state) :points (NTH 1 state))
 )
 
 (DEFUN play (&optional (wrong-input NIL))
@@ -222,7 +222,7 @@
   (LET* (
       (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
       (algorithm-evaluation (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)) ;Execute algorithm
-      (elapsed-time (/ (- (get-internal-real-time) start-time) 1.0)) ;Get the elapsed time of the algorithm
+      (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
 
       (statistics-string (get-statistics-string node (NTH 0 algorithm-evaluation) (NTH 1 algorithm-evaluation) (NTH 2 algorithm-evaluation) (NTH 3 algorithm-evaluation) (NTH 4 algorithm-evaluation) 10 elapsed-time))
     )
