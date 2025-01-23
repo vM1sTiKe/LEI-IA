@@ -69,8 +69,8 @@
       - heuristic (method): Heuristic calculator, recieves the node to evaluate. If the node is final it has to return a big number (positive if the playing-row wins);
       - terminal (method): Method to evaluate if the node is terminal;
       - node (Node): Node to execute the minimax-alphabeta algorithm;
-      - depth (int): The max depth;
-      - &optional use-memoization (Boolean)
+      - depth (integer): The max depth;
+      - &optional use-memoization (boolean or NIL)
 
     Returns: The node returned by the algorithm.
 
@@ -114,8 +114,22 @@
 )
 
 (DEFUN core (node depth &optional (alpha most-negative-fixnum) (beta most-positive-fixnum) (is-max-player T))
-  (IF (gethash node *algorithm-hashtable*) ;Verifies if the node is cached
-    (LIST node (gethash node *algorithm-hashtable*)) ;Return if cached
+  "
+    Arguments
+      - node (Node)
+      - depth (int)
+      - &optional alpha (integer or most-negative-fixnum)
+      - &optional beta (integer or most-positive-fixnum)
+      - &optional is-max-player (boolean or T)
+
+    Returns
+      - (node heuristic-value 1 0 0)
+      - (node heuristic-value analysed-nodes alpha-cuts beta-cuts): From min/max helpers
+
+    Executes the minimax with alpha-beta pruning. It returns with the node evaluation, the node and some statistics related to the execution.
+  "
+  (IF (gethash node *algorithm-hashtable*) ;Verifies if the node is cached and return it
+    (LIST node (gethash node *algorithm-hashtable*) 1 0 0)
     (COND ;Execute normaly to find the node value
       ((OR (ZEROP depth) (FUNCALL *terminal* node) (NULL (FUNCALL *spawner* node))) ;If one of the end conditions
         (LET (
@@ -124,7 +138,7 @@
           ) ; The if validating the is-max-player is to inver the values, meaning if the node evaluation of a min node is negative to THAT PLAYER, means it positive to the max player, needing to flip signal
           (PROGN
             (IF *memoization-usage* (sethash node *algorithm-hashtable* heuristic-value)) ;Link heuristic value to node on the hash-table (if is to use memoization)
-            (LIST node (* (IF is-max-player 1 -1) (1+ depth-calc) heuristic-value)) ;Depth-calc will be the weight or 0, simulating it was found on the last depth, it cannot be 0 because multiplication so increment 1
+            (LIST node (* (IF is-max-player 1 -1) (1+ depth-calc) heuristic-value) 1 0 0)
           )
         )
       )
@@ -134,41 +148,43 @@
   )
 )
 
-(DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
+(DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (nodes-analysed 0) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
-    (LIST node value alpha-cuts beta-cuts)
+    (LIST node value nodes-analysed alpha-cuts beta-cuts)
     (LET* (
         (core-evaluation (core (CAR children) (1- children-depth) alpha beta NIL)) ;Execute the minimax evaluation
-        (alpha-cuts (+ alpha-cuts (OR (NTH 2 core-evaluation) 0))) ;Get the amount of alpha cuts
-        (beta-cuts (+ beta-cuts (OR (NTH 3 core-evaluation) 0))) ;Get the amount of beta cuts
+        (nodes-analysed (+ nodes-analysed (NTH 2 core-evaluation))) ;Get the amount of analysed nodes
+        (alpha-cuts (+ alpha-cuts (NTH 3 core-evaluation))) ;Get the amount of alpha cuts
+        (beta-cuts (+ beta-cuts (NTH 4 core-evaluation))) ;Get the amount of beta cuts
 
         (old-value value) ;saves the old value
         (value (max value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
       (IF (> value beta) ;Fail hard, beta cut
-        (LIST node value alpha-cuts (1+ beta-cuts))
-        (max-node (CDR children) children-depth (max alpha value) beta value node alpha-cuts beta-cuts)
+        (LIST node value nodes-analysed alpha-cuts (1+ beta-cuts))
+        (max-node (CDR children) children-depth (max alpha value) beta value node nodes-analysed alpha-cuts beta-cuts)
       )
     )
   )
 )
 
-(DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
+(DEFUN min-node (children children-depth alpha beta &optional (value most-positive-fixnum) (node NIL) (nodes-analysed 0) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
-    (LIST node value alpha-cuts beta-cuts)
+    (LIST node value nodes-analysed alpha-cuts beta-cuts)
     (LET* (
         (core-evaluation (core (CAR children) (1- children-depth) alpha beta T)) ;Execute the minimax evaluation
-        (alpha-cuts (+ alpha-cuts (OR (NTH 2 core-evaluation) 0))) ;Get the amount of alpha cuts
-        (beta-cuts (+ beta-cuts (OR (NTH 3 core-evaluation) 0))) ;Get the amount of beta cuts
+        (nodes-analysed (+ nodes-analysed (NTH 2 core-evaluation))) ;Get the amount of analysed nodes
+        (alpha-cuts (+ alpha-cuts (NTH 3 core-evaluation))) ;Get the amount of alpha cuts
+        (beta-cuts (+ beta-cuts (NTH 4 core-evaluation))) ;Get the amount of beta cuts
 
         (old-value value) ;saves the old value
         (value (min value (NTH 1 core-evaluation)))
         (node (IF (NOT (= old-value value)) (CAR children) node))
       )
       (IF (< value alpha) ;Fail hard, alpha cut
-        (LIST node value (1+ alpha-cuts) beta-cuts)
-        (min-node (CDR children) children-depth alpha (min beta value) value node alpha-cuts beta-cuts)
+        (LIST node value nodes-analysed (1+ alpha-cuts) beta-cuts)
+        (min-node (CDR children) children-depth alpha (min beta value) value node nodes-analysed alpha-cuts beta-cuts)
       )
     )
   )
