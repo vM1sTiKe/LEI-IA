@@ -134,16 +134,7 @@
 (DEFUN pc-play (node use-memoization)
   (IF (no-available-play node)
     (skip-turn node)
-    (LET (
-        (algorithm-play (algorithm node use-memoization))
-      )
-      (PROGN
-        (FORMAT T "~%~%~%")
-        ; (print-node node)
-        (FORMAT T "AI Played at column: ~a" (1+ (NTH 1 (NTH 0 algorithm-play))))
-        algorithm-play
-      )
-    )
+    (algorithm node use-memoization)
   )
 )
 
@@ -228,8 +219,20 @@
 
     Returns: New node selected using the algorithm.
   "
-  ; (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 2)
-  (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)
+  (LET* (
+      (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
+
+      (algorithm-evaluation (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)) ;Execute algorithm
+
+      (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
+    )
+    (PROGN
+      (FORMAT T "~%~a~%" algorithm-evaluation)
+      (FORMAT T "~%~a~%" (NTH 0 algorithm-evaluation))
+      (FORMAT T "~%~a~%" elapsed-time)
+    )
+    (NTH 0 algorithm-evaluation)
+  )
 )
 (DEFUN skip-turn (node)
   "

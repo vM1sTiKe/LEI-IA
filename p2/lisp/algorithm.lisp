@@ -91,10 +91,7 @@
         (set-terminal NIL)
         (set-memoization-usage NIL)
         (set-hashtable)
-
-        ; evaluation
-        (FORMAT T "~a~%" evaluation)
-        (NTH 0 evaluation)
+        evaluation
       )
     )
   )
