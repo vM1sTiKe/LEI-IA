@@ -23,7 +23,7 @@
       (points-oposite-row (* 10 (get-row-points node oposite-row)))
     )
     (IF (is-solution node)
-      (IF (> points-playing-row points-oposite-row) 999 -999)
+      (IF (> points-playing-row points-oposite-row) 9999 -9999)
       (LET* (
           (empty-cells-playing-row (* 2 (get-row-empty-cells node playing-row)))
           (empty-cells-oposite-row (get-row-empty-cells node oposite-row))
