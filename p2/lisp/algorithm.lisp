@@ -70,6 +70,7 @@
       - terminal (method): Method to evaluate if the node is terminal;
       - node (Node): Node to execute the minimax-alphabeta algorithm;
       - depth (int): The max depth;
+      - &optional use-memoization (Boolean)
 
     Returns: The node returned by the algorithm.
 
@@ -132,15 +133,6 @@
     )
   )
 )
-
-(DEFUN teste (children heuristic)
-  (dolist (child (SORT (COPY-SEQ children) #'> :key heuristic))
-    (FORMAT T "~a~%" (FUNCALL heuristic child))
-    (VALUES)
-  )
-)
-
-;Hashtable is half done, cant continue because like there is no memory. LOL
 
 (DEFUN max-node (children children-depth alpha beta &optional (value most-negative-fixnum) (node NIL) (alpha-cuts 0) (beta-cuts 0))
   (IF (NULL children)
