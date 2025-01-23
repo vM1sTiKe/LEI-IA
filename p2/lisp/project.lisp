@@ -38,7 +38,7 @@
         ((OR (< option 1) (> option 3)) (play T)) ;Invalid option
         ((= option 3) (human-vs-human)) ;PvP selected
         ((= option 1) (human-vs-pc (human-vs-pc-pre-match) (pc-pre-match-memoization))) ;PvE selected
-        ((= option 2) (time (pc-vs-pc (pc-pre-match-memoization)))) ;EvE selected
+        ((= option 2) (pc-vs-pc (pc-pre-match-memoization))) ;EvE selected
       )
     )
   )
@@ -211,7 +211,7 @@
     (puzzle::constructor '((2 2 2 2 2 2) (2 2 2 2 2 2)))
   )
 )
-(DEFUN algorithm (node use-memoization)
+(DEFUN algorithm (node &optional (use-memoization NIL))
   "
     Arguments:
       - node (Node)
@@ -221,17 +221,16 @@
   "
   (LET* (
       (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
-
       (algorithm-evaluation (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)) ;Execute algorithm
+      (elapsed-time (/ (- (get-internal-real-time) start-time) 1.0)) ;Get the elapsed time of the algorithm
 
-      (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
+      (statistics-string (get-statistics-string node (NTH 0 algorithm-evaluation) (NTH 1 algorithm-evaluation) (NTH 2 algorithm-evaluation) (NTH 3 algorithm-evaluation) (NTH 4 algorithm-evaluation) 10 elapsed-time))
     )
     (PROGN
-      (FORMAT T "~%~a~%" algorithm-evaluation)
-      (FORMAT T "~%~a~%" (NTH 0 algorithm-evaluation))
-      (FORMAT T "~%~a~%" elapsed-time)
+      (FORMAT T statistics-string)
+      (write-statistics statistics-string)
+      (NTH 0 algorithm-evaluation)
     )
-    (NTH 0 algorithm-evaluation)
   )
 )
 (DEFUN skip-turn (node)
@@ -283,12 +282,12 @@
   "
   (PROGN
     (FORMAT T "~%~%~%~%")
-    (FORMAT T "===================================~%")
+    (FORMAT T "======================================~%")
     (COND
       ((EQUAL T winner) (FORMAT T "  No player WON. It was a TIE~%"))
       (T (FORMAT T "  WINNER: Player from the ~a row~%" (IF (= winner 0) "Top" "Bottom")))
     )
-    (FORMAT T "===================================")
+    (FORMAT T "======================================")
     (VALUES)
   )
 )
@@ -333,4 +332,29 @@
     Returns: Boolean, stating if the given cell is a valid play on the given node
   "
   (puzzle::cell-in-operators cell (puzzle::get-available-operators node))
+)
+;;; Auxiliar methods to call puzzle methods
+
+
+
+;;;Statistics
+(DEFUN get-statistics-string (original-node solution-node heuristic-value analised-nodes alpha-cuts beta-cuts max-time elapsed-time)
+  (CONCATENATE 'string ;Concatenate the statistics into one string to be used
+    (FORMAT NIL "~%~%~%")
+    (FORMAT NIL "No original: ~a~%" original-node)
+    (FORMAT NIL "No solucao: ~a~%" solution-node)
+    (FORMAT NIL "Valor heuristico: ~a~%" heuristic-value)
+    (FORMAT NIL "Nos analisados: ~a~%" analised-nodes)
+    (FORMAT NIL "Cortes | Alpha: ~a | Beta: ~a~%" alpha-cuts beta-cuts)
+    (FORMAT NIL "Tempo | Maximo: ~a | Execucao: ~a~%" max-time elapsed-time)
+    (FORMAT NIL "-----------------------------------------------------------------------~%")
+  )
+)
+
+(DEFUN write-statistics (statistics-string)
+  "Method to create a log file with the statistics of the resolved problem"
+  (WITH-OPEN-FILE (file "../log.dat" :direction :OUTPUT :if-exists :APPEND :if-does-not-exist :CREATE)
+    (WRITE-LINE statistics-string file)
+    (VALUES)
+  )
 )
