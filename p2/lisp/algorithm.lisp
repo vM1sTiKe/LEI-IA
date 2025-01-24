@@ -60,7 +60,7 @@
         
         Method to add to the hashtable the pair key:value
       "
-      (setf (gethash key algorithm-hashtable) value)
+      (setf (gethash key hashtable) value)
     )
 
     (DEFUN children-spawner-sorter (node is-max-player)
