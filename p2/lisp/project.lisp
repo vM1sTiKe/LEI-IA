@@ -1,4 +1,4 @@
-(IN-PACKAGE :p202000634-202000584)
+; (IN-PACKAGE :p202000634-202000584)
 
 (DEFPACKAGE :puzzle)
 (DEFPACKAGE :minimax-alphabeta)
@@ -24,49 +24,59 @@
   )
 )
 
-(DEFUN play (&optional (wrong-input NIL))
+(DEFUN play ()
   "
     Method to start a game, asking the pre-match information.
   "
   (PROGN
-    (FORMAT T "~%~%~%~%~%")
-    (IF wrong-input (FORMAT T "~%==================~%There was a miss input given, please do it again but with the right inputs~%==================~%"))
+    (FORMAT T "~%~%~%")
     (format t "Select the gamemode:~%")
     (format t "1- Player vs AI~%")
     (format t "2- AI vs AI~%")
     (FORMAT T "3- Player vs Player~%")
-    (FORMAT T "Option (1 to 3): ")
     (LET (
-        (option (READ)) ;Read user input
+        (option (get-number-from-keyboard 1 3)) ;Read user input
       )
       (COND
-        ((NOT (NUMBERP option)) (play T)) ;Not a number
-        ((OR (< option 1) (> option 3)) (play T)) ;Invalid option
-        ((= option 3) (human-vs-human)) ;PvP selected
-        ((= option 1) (human-vs-pc (human-vs-pc-pre-match) (pc-pre-match-memoization))) ;PvE selected
-        ((= option 2) (pc-vs-pc (pc-pre-match-memoization))) ;EvE selected
+        ((= option 3) ;PvP selected
+          (PROGN
+            (write-logs (FORMAT NIL "~%~%~%=============== Player vs Player ==============="))
+            (human-vs-human)
+          )
+        )
+        ((= option 1) ;PvE selected
+          (PROGN
+            (write-logs (FORMAT NIL "~%~%~%=============== Player vs AI ==============="))
+            (human-vs-pc (human-vs-pc-pre-match) (pc-pre-match-memoization))
+          )
+        )
+        ((= option 2) ;EvE selected
+          (PROGN
+            (write-logs (FORMAT NIL "~%~%~%=============== AI vs AI ==============="))
+            (pc-vs-pc (pc-pre-match-memoization))
+          )
+        )
       )
     )
   )
 )
 
-(DEFUN pc-pre-match-memoization (&optional (wrong-input NIL))
+
+
+;;; VS's
+(DEFUN pc-pre-match-memoization ()
   "
     Method to select if is to use memoization
   "
   (PROGN
-    (FORMAT T "~%~%~%~%~%")
-    (IF wrong-input (FORMAT T "~%==================~%There was a miss input given, please do it again but with the right inputs~%==================~%"))
+    (FORMAT T "~%~%~%")
     (format t "Select the use of memoization:~%")
     (format t "1- Yes~%")
     (format t "2- No~%")
-    (FORMAT T "Option (1 to 2): ")
     (LET (
-        (option (READ)) ;Read user input
+        (option (get-number-from-keyboard 1 2)) ;Read user input
       )
       (COND
-        ((NOT (NUMBERP option)) (pc-pre-match-memoization T)) ;Not a number
-        ((OR (< option 1) (> option 2)) (pc-pre-match-memoization T)) ;Invalid option
         ((= option 1) T) ;Yes memoization
         ((= option 2) NIL) ;No memoization
       )
@@ -74,27 +84,19 @@
   )
 )
 
-
-
-
-;;; VS's
-(DEFUN human-vs-pc-pre-match (&optional (wrong-input NIL))
+(DEFUN human-vs-pc-pre-match ()
   "
     Method to select who's gonna do the first move.
   "
   (PROGN
     (FORMAT T "~%~%~%")
-    (IF wrong-input (FORMAT T "~%==================~%There was a miss input given, please do it again but with the right inputs~%==================~%"))
     (FORMAT T "Select who's playing first (top row):~%")
     (FORMAT T "1- Player~%")
     (FORMAT T "2- AI~%")
-    (FORMAT T "Option (1 or 2): ")
     (LET (
-        (option (READ)) ;Read user input
+        (option (get-number-from-keyboard 1 2)) ;Read user input
       )
       (COND
-        ((NOT (NUMBERP option)) (human-vs-pc-pre-match T)) ;Not a number
-        ((OR (< option 1) (> option 2)) (human-vs-pc-pre-match T)) ;Invalid option
         ((= option 1) NIL) ;Player starts
         ((= option 2) T) ;AI starts
       )
@@ -104,7 +106,7 @@
 
 (DEFUN pc-vs-pc (use-memoization &optional (node (constructor T) ))
   (IF (get-winner node)
-    (winner (get-winner node))
+    (VALUES)
     (pc-vs-pc use-memoization (pc-play node use-memoization))
   )
 )
@@ -117,7 +119,7 @@
     Method to do a game between a human and a AI.
   "
   (COND
-    ((get-winner node) (winner (get-winner node))) ;Write who's the winner
+    ((get-winner node) (VALUES))
     (is-ai (human-vs-pc (NOT is-ai) use-memoization (pc-play node use-memoization))) ;Let AI play
     (T (human-vs-pc (NOT is-ai) use-memoization (human-play node))) ;Let player do the play
   )
@@ -128,7 +130,7 @@
     Method to do a game between two humans
   "
   (IF (get-winner node)
-    (winner (get-winner node))
+    (VALUES)
     (human-vs-human (human-play node))
   )
 )
@@ -138,9 +140,27 @@
 
 ;;; Plays
 (DEFUN pc-play (node use-memoization)
-  (IF (no-available-play node)
-    (skip-turn node)
-    (algorithm node use-memoization)
+  "
+    Arguments:
+      - node (list)
+      - use-memoization (Boolean)
+
+    Returns: A new node with the play algorithm selected.
+  "
+  (PROGN
+    (FORMAT T "~%~%~%")
+    (LET (
+        (board-string (get-node-string node T))
+      )
+      (PROGN
+        (FORMAT T board-string)
+        (write-logs board-string)
+        (IF (no-available-play node)
+          (skip-turn node)
+          (algorithm node use-memoization)
+        )
+      )
+    )
   )
 )
 
@@ -153,45 +173,28 @@
 
     Having a node, its asked to the human of the row playing where does he want to play. With the selected cell its created a new node with the play.
   "
-  (IF (no-available-play node)
-    (skip-turn node)
-    (PROGN
-      (FORMAT T "~%~%~%~%~%")
-      (IF wrong-input (FORMAT T "There was a miss input given, please do it again but with the right inputs~%==================~%"))
-      (FORMAT T "Row playing: ~a~%" (IF (= (get-playing-row node) 0) "Top" "Bottom"))
-      (FORMAT T "Player type: Human~%")
-      (FORMAT T "==================~%")
-      (print-node node)
-      (FORMAT T "==================~%")
-      (FORMAT T "Column to play (1 to 6, from left to right): ")
-      ;;Save the operators that are available for the node
-      ;;and ask the human to give what cell is to be played at
-      (LET (
-          (column (READ))
-        )
-        ;;Verifies if the column is a number
-        ; If, not repeat the process for the human to fix the error
-        (IF (NOT (NUMBERP column))
-          (human-play node T)
-          ;;Saves the playing cell (row column), removing 1 from the number sended by the user, since we need 0 to 5 and not 1 to 6 like its asked to him
-          (LET (
-              (playing-cell (LIST (get-playing-row node) (1- column)))
+  (PROGN
+    (FORMAT T "~%~%~%")
+    (IF wrong-input (FORMAT T "There was a miss input given, please do it again but with the right inputs~%"))
+    (LET (
+        (board-string (get-node-string node))
+      )
+      (PROGN
+        (FORMAT T board-string)
+        (IF (no-available-play node)
+          (PROGN
+            (write-logs board-string)
+            (skip-turn node)
+          )
+          (LET* ( 
+              (column (get-number-from-keyboard 1 6)) ;Get the column to play at
+              (playing-cell (LIST (get-playing-row node) (1- column))) ;Create a (row column) variable
             )
-            ;;Verifies if the cell is a valid operator
-            ; If not, repeat the process for the human to fix the error
-            ; If yes, executes the operation on the cell
-            (IF (NOT (is-available-cell node playing-cell))
+            (IF (NOT (is-available-cell node playing-cell)) ;Verifies if the playing cell is valid
               (human-play node T)
-              ;;Saves the operation, write it was a success and returns the new node
-              (LET (
-                  (executed-operation (spawn node playing-cell))
-                )
-                (PROGN
-                  ; (FORMAT T "~%~%Success on execution the play~%")
-                  ; (FORMAT T "==================~%")
-                  ; (print-node executed-operation)
-                  executed-operation
-                )
+              (PROGN
+                (write-logs board-string)
+                (spawn node playing-cell)
               )
             )
           )
@@ -201,6 +204,31 @@
   )
 )
 ;;; Plays
+
+
+
+;;; Aux
+(DEFUN get-number-from-keyboard (min-n max-n)
+  "
+      Arguments
+        - min (integer)
+        - max (integer)
+      
+      Returns: Integer readed from keyboard, between the min and max
+  "
+  (PROGN
+    (FORMAT T "Select a number (~a to ~a): " min-n max-n)
+    (LET (
+        (num (READ))
+      )
+      (IF (OR (NOT (NUMBERP num)) (OR (< num min-n) (> num max-n))) ;Verifies if is a number and inside the []
+        (get-number-from-keyboard min-n max-n)
+        num
+      )
+    )
+  )
+)
+;;; Aux
 
 
 
@@ -234,7 +262,7 @@
     )
     (PROGN
       (FORMAT T statistics-string)
-      (write-statistics statistics-string)
+      (write-logs statistics-string)
       (NTH 0 algorithm-evaluation)
     )
   )
@@ -257,56 +285,51 @@
 
     Returns if the given node has any available play, also printing saying if cannot play.
   "
-  (IF (NOT (puzzle::can-node-play node))
-    (PROGN ;No available play
-      (FORMAT T "~%~%~%")
-      (FORMAT T "There is no available play. Skipping")
-      T
-    )
-    NIL
-  )  
+  (NOT (puzzle::can-node-play node))  
 )
 (DEFUN get-winner (node)
   "
     Arguments:
       - node (Node).
 
-    Returns: {0,1,NIL}.
+    Returns: Boolean
 
     Returns the winner if there is.
   "
-  (puzzle::get-winner node)
-)
-(DEFUN winner (winner)
-  "
-    Arguments:
-      - node ({0,1})
-
-    Returns: void.
-
-    Prints the winner information.
-  "
-  (PROGN
-    (FORMAT T "~%~%~%~%")
-    (FORMAT T "======================================~%")
-    (COND
-      ((EQUAL T winner) (FORMAT T "  No player WON. It was a TIE~%"))
-      (T (FORMAT T "  WINNER: Player from the ~a row~%" (IF (= winner 0) "Top" "Bottom")))
+  (IF (NULL (puzzle::get-winner node))
+    NIL
+    (LET (
+        (str (CONCATENATE 'string
+          (FORMAT NIL (puzzle::get-node-string node))
+          (FORMAT nil "~%======================================~%")
+          (COND
+            ((EQUAL T (puzzle::get-winner node)) (FORMAT NIL "  No player WON. It was a TIE~%"))
+            (T (FORMAT NIL "  WINNER: Player from the ~a row~%" (IF (= (puzzle::get-winner node) 0) "Top" "Bottom")))
+          )
+          (FORMAT NIL "======================================")
+        ))
+      )
+      (PROGN
+        (FORMAT T "~%~%~%~%")
+        (FORMAT T str)
+        (write-logs str)
+        T
+      )
     )
-    (FORMAT T "======================================")
-    (VALUES)
   )
 )
-(DEFUN print-node (node)
+(DEFUN get-node-string (node &optional (is-ai NIL))
   "
     Arguments:
-      - node (Node).
+      - node (Node)
+      - &optional is-ai (Boolean)
 
-    Returns: void.
-
-    Prints the given node on the screen.
+    Returns: Board string
   "
-  (puzzle::print-node node)
+  (CONCATENATE 'string
+    (FORMAT NIL "====  ~a ~a  ====~%" (IF is-ai "PC" "HUMAN") (IF (no-available-play node) "!SKIPPING!" ""))
+    (FORMAT NIL (puzzle::get-node-string node))
+  )
 )
 (DEFUN get-playing-row (node)
   "
@@ -346,7 +369,6 @@
 ;;;Statistics
 (DEFUN get-statistics-string (original-node solution-node heuristic-value analised-nodes alpha-cuts beta-cuts max-time elapsed-time)
   (CONCATENATE 'string ;Concatenate the statistics into one string to be used
-    (FORMAT NIL "~%~%~%")
     (FORMAT NIL "No original: ~a~%" original-node)
     (FORMAT NIL "No solucao: ~a~%" solution-node)
     (FORMAT NIL "Valor heuristico: ~a~%" heuristic-value)
@@ -357,10 +379,10 @@
   )
 )
 
-(DEFUN write-statistics (statistics-string)
-  "Method to create a log file with the statistics of the resolved problem"
+(DEFUN write-logs (string)
+  "Method to create a log file and write on it"
   (WITH-OPEN-FILE (file "../log.dat" :direction :OUTPUT :if-exists :APPEND :if-does-not-exist :CREATE)
-    (WRITE-LINE statistics-string file)
+    (WRITE-LINE string file)
     (VALUES)
   )
 )
