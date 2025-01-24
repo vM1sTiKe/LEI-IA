@@ -7,6 +7,9 @@
     (memoization-usage NIL)
 
     (algorithm-hashtable NIL)
+
+    (timer-start NIL)
+    (timer-max 0)
   )
   (PROGN
     (DEFUN set-spawner (method)
@@ -62,6 +65,26 @@
       "
       (setf (gethash key hashtable) value)
     )
+    (DEFUN set-timer-max (&optional (seconds 0))
+      "
+        Arguments
+          - seconds (Integer)
+        
+        Method to set the given seconds as the allowed max time the algorithm can execute.
+        It will remove a buffer of 0.2 seconds from the max time
+      "
+      ;Add the timer max as 0 or the sent seconds
+      (setf timer-max (IF (ZEROP seconds) 0 (- (* seconds 1000) 200)))
+    )
+    (DEFUN set-timer-start (time)
+      "
+        Arguments
+          - time (Integer)
+
+        Method to store the time miliseconds
+      "
+      (setf timer-start time)
+    )
 
     (DEFUN children-spawner-sorter (node is-max-player)
       "
@@ -78,7 +101,7 @@
       (SORT (FUNCALL spawner node) (IF is-max-player #'< #'>) :key heuristic)
     )
 
-    (DEFUN execute (spawner heuristic terminal node depth &optional (use-memoization NIL))
+    (DEFUN execute (spawner heuristic terminal node depth &key (use-memoization NIL) (max-seconds 360))
       "
         Arguments:
           - spawner (method): Nodes spawner method, this method has one in param and it is the parent node to generate the childs from;
@@ -94,11 +117,14 @@
         Algorithm is to not be called when the player has no available childs to spawn.
       "
       (PROGN
-        (set-spawner spawner)
-        (set-heuristic heuristic)
-        (set-terminal terminal)
-        (set-memoization-usage use-memoization)
-        (set-hashtable)
+        (set-timer-start (get-internal-real-time)) ;Store time that started
+        (set-timer-max max-seconds) ;Store max allowed seconds
+
+        (set-spawner spawner) ;Store spawner method
+        (set-heuristic heuristic) ;Store heuristic method
+        (set-terminal terminal) ;Store evaluation method
+        (set-memoization-usage use-memoization) ;Store if is allowed to use memoization
+        (set-hashtable) ;Create empty hashtable
         (LET (
             (evaluation (core node depth)) ;Execute algorithm
           )
@@ -108,6 +134,8 @@
             (set-terminal NIL)
             (set-memoization-usage NIL)
             (set-hashtable)
+            (set-timer-start NIL)
+            (set-timer-max)
             evaluation
           )
         )
@@ -132,7 +160,8 @@
       (IF (gethash node algorithm-hashtable) ;Verifies if the node is cached and return it
         (LIST node (gethash node algorithm-hashtable) 1 0 0)
         (COND ;Execute normaly to find the node value
-          ((OR (ZEROP depth) (FUNCALL terminal node) (NULL (FUNCALL spawner node))) ;If one of the end conditions
+          ;It will end if no more time, pseudo leaf and leaf
+          ((OR (> (- (get-internal-real-time) timer-start) timer-max) (ZEROP depth) (FUNCALL terminal node) (NULL (FUNCALL spawner node))) ;If one of the end conditions
             (LET (
                 (heuristic-value (FUNCALL heuristic node)) ;Get the heursitic value of the node
                 (depth-calc (IF (FUNCALL terminal node) depth 0)) ;If a node is terminal give him a weight using the depth.
