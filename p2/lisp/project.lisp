@@ -9,6 +9,7 @@
 
 
 ;;; Methods
+;Teste: (jogar '(((8 8 8 8 8 8) (8 8 8 8 8 8)) (0 0)) 15000)
 (DEFUN jogar (state execution-time)
   "
     Arguments:
@@ -18,7 +19,7 @@
     Method to be called on the algorithms championship, it will call the algorithm and return the info given by it.
   "
   (LET (
-      (evaluation (algorithm (puzzle::constructor (NTH 0 state) 0 :points (NTH 1 state))))
+      (evaluation (NTH 0 (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution (puzzle::constructor (NTH 0 state) 0 :points (NTH 1 state)) 10 :max-seconds (/ execution-time 1000))))
     )
     (LIST (puzzle::get-play evaluation) (LIST (puzzle::get-state evaluation) (puzzle::get-points evaluation)))
   )
