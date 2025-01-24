@@ -255,7 +255,7 @@
   "
   (LET* (
       (start-time (get-internal-real-time)) ;Get begining time of the algorithm execution
-      (algorithm-evaluation (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 use-memoization)) ;Execute algorithm
+      (algorithm-evaluation (minimax-alphabeta::execute 'puzzle::spawner 'puzzle::heuristic 'puzzle::is-solution node 10 :use-memoization use-memoization)) ;Execute algorithm
       (elapsed-time (/ (- (get-internal-real-time) start-time) 1000.0)) ;Get the elapsed time of the algorithm
 
       (statistics-string (get-statistics-string node (NTH 0 algorithm-evaluation) (NTH 1 algorithm-evaluation) (NTH 2 algorithm-evaluation) (NTH 3 algorithm-evaluation) (NTH 4 algorithm-evaluation) 10 elapsed-time))
