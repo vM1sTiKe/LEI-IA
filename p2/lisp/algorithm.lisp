@@ -65,16 +65,16 @@
       "
       (setf (gethash key hashtable) value)
     )
-    (DEFUN set-timer-max (&optional (seconds 0))
+    (DEFUN set-timer-max (&optional (miliseconds 200))
       "
         Arguments
-          - seconds (Integer)
+          - miliseconds (Integer)
         
         Method to set the given seconds as the allowed max time the algorithm can execute.
         It will remove a buffer of 0.2 seconds from the max time
       "
       ;Add the timer max as 0 or the sent seconds
-      (setf timer-max (IF (ZEROP seconds) 0 (- (* seconds 1000) 200)))
+      (setf timer-max (- miliseconds 200))
     )
     (DEFUN set-timer-start (time)
       "
@@ -101,7 +101,7 @@
       (SORT (FUNCALL spawner node) (IF is-max-player #'< #'>) :key heuristic)
     )
 
-    (DEFUN execute (spawner heuristic terminal node depth &key (use-memoization NIL) (max-seconds 360))
+    (DEFUN execute (spawner heuristic terminal node depth &key (use-memoization NIL) (max-miliseconds 36000))
       "
         Arguments:
           - spawner (method): Nodes spawner method, this method has one in param and it is the parent node to generate the childs from;
@@ -118,7 +118,7 @@
       "
       (PROGN
         (set-timer-start (get-internal-real-time)) ;Store time that started
-        (set-timer-max max-seconds) ;Store max allowed seconds
+        (set-timer-max max-miliseconds) ;Store max allowed seconds
 
         (set-spawner spawner) ;Store spawner method
         (set-heuristic heuristic) ;Store heuristic method
